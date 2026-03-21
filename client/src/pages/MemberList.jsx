@@ -1,31 +1,66 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLocale } from '../contexts/LocaleContext';
 import { normalizeMember } from '../utils/apiTransforms';
 import {
-  Users,
-  Plus,
-  Eye,
-  Pencil,
-  Trash2,
-  Search,
   ChevronLeft,
   ChevronRight,
-  Loader2,
-  UserCheck,
-  UserX,
+  Eye,
   Inbox,
+  Landmark,
+  Loader2,
+  Pencil,
+  Phone,
+  PiggyBank,
+  Plus,
+  Search,
+  UserCheck,
+  Users,
+  UserX,
 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 10;
 
+function getMemberKey(member) {
+  return member._id || member.id;
+}
+
+function getVisiblePages(currentPage, totalPages) {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const start = Math.max(1, currentPage - 1);
+  const end = Math.min(totalPages, start + 2);
+  const adjustedStart = Math.max(1, end - 2);
+
+  return Array.from({ length: end - adjustedStart + 1 }, (_, index) => adjustedStart + index);
+}
+
+function SummaryCard({ icon: Icon, label, value, accent }) {
+  return (
+    <div className="glass-panel-strong rounded-[1.6rem] p-4">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${accent}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-faint)]">{label}</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MemberList() {
+  const { formatDate: localeFormatDate, formatCurrency: localeFormatCurrency } = useLocale();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
-  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmMemberId, setConfirmMemberId] = useState(null);
 
   useEffect(() => {
     fetchMembers();
@@ -38,6 +73,7 @@ export default function MemberList() {
       if (!response.ok) {
         throw new Error('Failed to fetch members');
       }
+
       const data = await response.json();
       setMembers(Array.isArray(data) ? data.map(normalizeMember).filter(Boolean) : []);
     } catch (error) {
@@ -49,377 +85,477 @@ export default function MemberList() {
 
   const filteredMembers = useMemo(() => {
     return members.filter((member) => {
-      const matchesSearch = member.name
-        ?.toLowerCase()
-        .includes(search.toLowerCase());
+      const memberSearchBlob = [
+        member.name,
+        member.email,
+        member.phone,
+        member.member_no,
+        member.address,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      const matchesSearch = memberSearchBlob.includes(search.toLowerCase());
       const matchesStatus =
         statusFilter === 'All' ||
-        member.status?.toLowerCase() === statusFilter.toLowerCase();
+        String(member.status || '').toLowerCase() === statusFilter.toLowerCase();
+
       return matchesSearch && matchesStatus;
     });
   }, [members, search, statusFilter]);
 
-  const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / ITEMS_PER_PAGE));
+  const visiblePages = getVisiblePages(currentPage, totalPages);
   const paginatedMembers = filteredMembers.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  const totalActive = members.filter(
-    (m) => m.status?.toLowerCase() === 'active'
-  ).length;
-  const totalInactive = members.filter(
-    (m) => m.status?.toLowerCase() === 'inactive'
-  ).length;
+  const totalActive = members.filter((member) => String(member.status || '').toLowerCase() === 'active').length;
+  const totalInactive = members.filter((member) => String(member.status || '').toLowerCase() === 'inactive').length;
 
   useEffect(() => {
     setCurrentPage(1);
   }, [search, statusFilter]);
 
-  const handleDeactivate = async (id) => {
+  const handleStatusUpdate = async (memberId, status) => {
     try {
-      const response = await fetch(`/api/members/${id}`, {
+      const response = await fetch(`/api/members/${memberId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'inactive' }),
+        body: JSON.stringify({ status }),
       });
+
       if (!response.ok) {
-        throw new Error('Failed to deactivate member');
+        throw new Error(`Failed to set member status to ${status}`);
       }
-      setConfirmDelete(null);
+
+      setConfirmMemberId(null);
       fetchMembers();
     } catch (error) {
-      console.error('Failed to deactivate member:', error);
+      console.error('Failed to update member status:', error);
     }
   };
 
-  const handleReactivate = async (id) => {
-    try {
-      const response = await fetch(`/api/members/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'active' }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to reactivate member');
-      }
-      setConfirmDelete(null);
-      fetchMembers();
-    } catch (error) {
-      console.error('Failed to reactivate member:', error);
-    }
-  };
-
-  const { formatDate: localeFormatDate, formatCurrency: localeFormatCurrency } = useLocale();
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    return localeFormatDate(dateStr);
+  const formatDate = (value) => {
+    if (!value) return '—';
+    return localeFormatDate(value);
   };
 
   const formatCurrency = (amount) => {
     if (amount == null) return '—';
-    return localeFormatCurrency(amount);
+    return localeFormatCurrency(Number(amount) || 0);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <Users className="w-6 h-6 text-indigo-600" />
+    <div className="space-y-6">
+      {/* Header */}
+      <section className="glass-panel-strong rounded-[2rem] p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[1.35rem] bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-faint)]">Member Directory</p>
+                <h1 className="text-2xl font-semibold text-[var(--text-primary)] sm:text-3xl">Members</h1>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-slate-800">Members</h1>
+            <p className="mt-3 max-w-2xl text-sm text-[var(--text-muted)]">
+              Browse profiles, track savings and loan activity, and manage active or inactive members.
+            </p>
           </div>
+
           <Link
             to="/members/new"
-            className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700 sm:w-auto"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-4 w-4" />
             Add Member
           </Link>
         </div>
+      </section>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-4">
-            <div className="p-3 bg-indigo-50 rounded-lg">
-              <Users className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Total Members</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {members.length}
-              </p>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-4">
-            <div className="p-3 bg-emerald-50 rounded-lg">
-              <UserCheck className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Active</p>
-              <p className="text-2xl font-bold text-emerald-600">
-                {totalActive}
-              </p>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-4">
-            <div className="p-3 bg-red-50 rounded-lg">
-              <UserX className="w-5 h-5 text-red-500" />
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Inactive</p>
-              <p className="text-2xl font-bold text-red-500">
-                {totalInactive}
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <SummaryCard
+          icon={Users}
+          label="Total"
+          value={members.length.toLocaleString()}
+          accent="bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400"
+        />
+        <SummaryCard
+          icon={UserCheck}
+          label="Active"
+          value={totalActive.toLocaleString()}
+          accent="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+        />
+        <SummaryCard
+          icon={UserX}
+          label="Inactive"
+          value={totalInactive.toLocaleString()}
+          accent="bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400"
+        />
+      </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      {/* Search & Filter */}
+      <section className="glass-panel-strong rounded-[2rem] p-5 sm:p-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_12rem]">
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-faint)]" />
             <input
               type="text"
-              placeholder="Search members by name..."
+              placeholder="Search by name, phone, email, or member number"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-11 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-faint)]"
             />
-          </div>
+          </label>
+
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-[var(--text-primary)]"
           >
-            <option value="All">All Status</option>
+            <option value="All">All Statuses</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-3" />
-              <p className="text-slate-500 text-sm">Loading members...</p>
+        <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
+          <span className="rounded-full bg-[var(--surface-3)] px-3 py-1">
+            {filteredMembers.length} visible members
+          </span>
+          <span className="rounded-full bg-[var(--surface-3)] px-3 py-1">
+            {paginatedMembers.length} on this page
+          </span>
+        </div>
+      </section>
+
+      {/* Member List */}
+      <section className="overflow-hidden rounded-[2rem] glass-panel-strong">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center px-6 py-20">
+            <Loader2 className="mb-3 h-8 w-8 animate-spin text-indigo-500" />
+            <p className="text-sm text-[var(--text-muted)]">Loading members...</p>
+          </div>
+        ) : paginatedMembers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--surface-3)]">
+              <Inbox className="h-8 w-8 text-[var(--text-faint)]" />
             </div>
-          ) : paginatedMembers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="p-4 bg-slate-100 rounded-full mb-4">
-                <Inbox className="w-8 h-8 text-slate-400" />
-              </div>
-              <p className="text-slate-600 font-medium mb-1">
-                No members found
-              </p>
-              <p className="text-slate-400 text-sm">
-                {search || statusFilter !== 'All'
-                  ? 'Try adjusting your search or filters'
-                  : 'Get started by adding your first member'}
-              </p>
+            <p className="text-base font-medium text-[var(--text-primary)]">No members found</p>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">
+              {search || statusFilter !== 'All'
+                ? 'Try changing your search or status filter.'
+                : 'Add your first member to get started.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* ── Mobile Cards ── */}
+            <div className="space-y-3 p-4 md:hidden">
+              {paginatedMembers.map((member) => {
+                const memberId = getMemberKey(member);
+                const isConfirming = confirmMemberId === memberId;
+                const isActive = String(member.status || '').toLowerCase() === 'active';
+
+                return (
+                  <article key={memberId} className="rounded-[1.6rem] border border-[var(--border-soft)] bg-[var(--surface-3)] p-4">
+                    {/* Top row: avatar + info + status */}
+                    <div className="flex items-center gap-3">
+                      {member.photo_url ? (
+                        <img
+                          src={member.photo_url}
+                          alt={member.name}
+                          className="h-11 w-11 shrink-0 rounded-2xl border border-[var(--border-soft)] object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-sm font-semibold text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
+                          {member.name?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h2 className="truncate text-[15px] font-semibold text-[var(--text-primary)]">{member.name}</h2>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                              isActive
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
+                                : 'bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400'
+                            }`}
+                          >
+                            {member.status || 'Active'}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-3 text-xs text-[var(--text-muted)]">
+                          {member.member_no && <span>#{member.member_no}</span>}
+                          {member.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {member.phone}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="flex items-center gap-2 rounded-xl bg-[var(--surface-1)] px-3 py-2">
+                        <PiggyBank className="h-4 w-4 text-[var(--text-faint)]" />
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">Savings</p>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">{formatCurrency(member.totalSavings)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 rounded-xl bg-[var(--surface-1)] px-3 py-2">
+                        <Landmark className="h-4 w-4 text-[var(--text-faint)]" />
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">Loans</p>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">{member.activeLoans ?? 0} active</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action buttons - all in one row */}
+                    {isConfirming ? (
+                      <div className="mt-3 flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-1)] p-2.5">
+                        <p className="flex-1 text-xs text-[var(--text-muted)]">
+                          {isActive ? 'Deactivate?' : 'Reactivate?'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleStatusUpdate(memberId, isActive ? 'inactive' : 'active')}
+                          className={`rounded-xl px-3 py-1.5 text-xs font-medium text-white ${
+                            isActive ? 'bg-rose-600' : 'bg-emerald-600'
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmMemberId(null)}
+                          className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex items-center gap-2">
+                        <Link
+                          to={`/members/${memberId}`}
+                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-indigo-700"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </Link>
+                        <Link
+                          to={`/members/${memberId}/edit`}
+                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmMemberId(memberId)}
+                          className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                            isActive
+                              ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400 dark:hover:bg-rose-500/25'
+                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-400 dark:hover:bg-emerald-500/25'
+                          }`}
+                        >
+                          {isActive ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+                          {isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
             </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Phone
-                      </th>
-                      <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Join Date
-                      </th>
-                      <th className="text-right px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Total Savings
-                      </th>
-                      <th className="text-center px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Active Loans
-                      </th>
-                      <th className="text-center px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="text-center px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {paginatedMembers.map((member) => (
-                      <tr
-                        key={member._id || member.id}
-                        className="hover:bg-slate-50 transition-colors"
-                      >
-                        <td className="px-6 py-4">
+
+            {/* ── Desktop Table ── */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[var(--border-soft)] bg-[var(--table-head-bg)]">
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Member</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Phone</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Joined</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Savings</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Loans</th>
+                    <th className="px-5 py-3.5 text-center text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Status</th>
+                    <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-soft)]">
+                  {paginatedMembers.map((member) => {
+                    const memberId = getMemberKey(member);
+                    const isConfirming = confirmMemberId === memberId;
+                    const isActive = String(member.status || '').toLowerCase() === 'active';
+
+                    return (
+                      <tr key={memberId} className="transition-colors hover:bg-[var(--table-row-hover)]">
+                        <td className="whitespace-nowrap px-5 py-3.5">
                           <div className="flex items-center gap-3">
                             {member.photo_url ? (
                               <img
                                 src={member.photo_url}
                                 alt={member.name}
-                                className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                                className="h-10 w-10 rounded-full border border-[var(--border-soft)] object-cover"
                               />
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-xs">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
                                 {member.name?.charAt(0)?.toUpperCase() || '?'}
                               </div>
                             )}
-                            <div>
-                              <p className="text-sm font-medium text-slate-800">
-                                {member.name}
+                            <div className="min-w-0">
+                              <p className="font-medium text-[var(--text-primary)]">{member.name}</p>
+                              <p className="truncate text-xs text-[var(--text-faint)]">
+                                {member.member_no ? `#${member.member_no}` : member.email || '—'}
                               </p>
-                              {member.email && (
-                                <p className="text-xs text-slate-400">
-                                  {member.email}
-                                </p>
-                              )}
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {member.phone || '—'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatDate(member.joinedDate || member.createdAt)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-800 font-medium text-right">
-                          {formatCurrency(member.totalSavings)}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600 text-center">
-                          {member.activeLoans ?? 0}
-                        </td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="whitespace-nowrap px-5 py-3.5 text-sm text-[var(--text-secondary)]">{member.phone || '—'}</td>
+                        <td className="whitespace-nowrap px-5 py-3.5 text-sm text-[var(--text-muted)]">{formatDate(member.joinedDate || member.createdAt)}</td>
+                        <td className="whitespace-nowrap px-5 py-3.5 text-right text-sm font-medium text-[var(--text-primary)]">{formatCurrency(member.totalSavings)}</td>
+                        <td className="whitespace-nowrap px-5 py-3.5 text-center text-sm text-[var(--text-secondary)]">{member.activeLoans ?? 0}</td>
+                        <td className="whitespace-nowrap px-5 py-3.5 text-center">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              member.status?.toLowerCase() === 'active'
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-red-50 text-red-600'
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              isActive
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
+                                : 'bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400'
                             }`}
                           >
                             {member.status || 'Active'}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-1">
-                            <Link
-                              to={`/members/${member._id || member.id}`}
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="View"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Link>
-                            <Link
-                              to={`/members/${member._id || member.id}/edit`}
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                              title="Edit"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Link>
-                            {confirmDelete === (member._id || member.id) ? (
-                              <div className="flex items-center gap-1">
+                        <td className="whitespace-nowrap px-5 py-3.5">
+                          <div className="flex items-center justify-end gap-2">
+                            {isConfirming ? (
+                              <>
+                                <span className="mr-1 text-xs text-[var(--text-muted)]">
+                                  {isActive ? 'Deactivate?' : 'Activate?'}
+                                </span>
                                 <button
-                                  onClick={() =>
-                                    member.status?.toLowerCase() === 'active'
-                                      ? handleDeactivate(member._id || member.id)
-                                      : handleReactivate(member._id || member.id)
-                                  }
-                                  className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                  type="button"
+                                  onClick={() => handleStatusUpdate(memberId, isActive ? 'inactive' : 'active')}
+                                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium text-white ${
+                                    isActive ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                                  }`}
                                 >
-                                  {member.status?.toLowerCase() === 'active' ? 'Deactivate' : 'Activate'}
+                                  {isActive ? 'Yes' : 'Yes'}
                                 </button>
                                 <button
-                                  onClick={() => setConfirmDelete(null)}
-                                  className="px-2 py-1 text-xs bg-slate-200 text-slate-600 rounded hover:bg-slate-300 transition-colors"
+                                  type="button"
+                                  onClick={() => setConfirmMemberId(null)}
+                                  className="inline-flex items-center rounded-xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
                                 >
-                                  Cancel
+                                  No
                                 </button>
-                              </div>
+                              </>
                             ) : (
-                              <button
-                                onClick={() =>
-                                  setConfirmDelete(member._id || member.id)
-                                }
-                                className={`p-2 rounded-lg transition-colors ${
-                                  member.status?.toLowerCase() === 'active'
-                                    ? 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                                    : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
-                                }`}
-                                title={member.status?.toLowerCase() === 'active' ? 'Deactivate Member' : 'Reactivate Member'}
-                              >
-                                {member.status?.toLowerCase() === 'active'
-                                  ? <UserX className="w-4 h-4" />
-                                  : <UserCheck className="w-4 h-4" />
-                                }
-                              </button>
+                              <>
+                                <Link
+                                  to={`/members/${memberId}`}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-400 dark:hover:bg-indigo-500/25"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  View
+                                </Link>
+                                <Link
+                                  to={`/members/${memberId}/edit`}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-400 dark:hover:bg-amber-500/25"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Edit
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmMemberId(memberId)}
+                                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                                    isActive
+                                      ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/15 dark:text-rose-400 dark:hover:bg-rose-500/25'
+                                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-400 dark:hover:bg-emerald-500/25'
+                                  }`}
+                                >
+                                  {isActive ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+                                  {isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
-                  <p className="text-sm text-slate-500">
-                    Showing{' '}
-                    {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
-                    {Math.min(
-                      currentPage * ITEMS_PER_PAGE,
-                      filteredMembers.length
-                    )}{' '}
-                    of {filteredMembers.length} members
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() =>
-                        setCurrentPage((p) => Math.max(1, p - 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (page) => (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                            currentPage === page
-                              ? 'bg-indigo-600 text-white'
-                              : 'text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      )
-                    )}
-                    <button
-                      onClick={() =>
-                        setCurrentPage((p) => Math.min(totalPages, p + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex flex-col gap-3 border-t border-[var(--border-soft)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <p className="text-sm text-[var(--text-muted)]">
+                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
+                  {Math.min(currentPage * ITEMS_PER_PAGE, filteredMembers.length)} of {filteredMembers.length} members
+                </p>
+
+                <div className="flex items-center justify-between gap-2 sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    disabled={currentPage === 1}
+                    className="inline-flex items-center gap-1 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </button>
+
+                  <div className="hidden items-center gap-2 sm:flex">
+                    {visiblePages.map((pageNumber) => (
+                      <button
+                        key={pageNumber}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNumber)}
+                        className={`h-9 w-9 rounded-xl text-sm font-medium ${
+                          currentPage === pageNumber
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-[var(--surface-3)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
                   </div>
+
+                  <span className="text-sm font-medium text-[var(--text-muted)] sm:hidden">
+                    {currentPage} / {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    disabled={currentPage === totalPages}
+                    className="inline-flex items-center gap-1 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

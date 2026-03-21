@@ -67,6 +67,23 @@ function generateUsername(name) {
   }
 }
 
+function getMemberLoansWithMetrics(memberId) {
+  return db.prepare(`
+    SELECT l.*,
+      COALESCE((SELECT SUM(lr.amount) FROM loan_repayments lr WHERE lr.loan_id = l.id), 0) AS total_paid,
+      COALESCE((SELECT SUM(COALESCE(lr.principal, 0)) FROM loan_repayments lr WHERE lr.loan_id = l.id), 0) AS principal_paid,
+      COALESCE((SELECT SUM(COALESCE(lr.interest, 0)) FROM loan_repayments lr WHERE lr.loan_id = l.id), 0) AS interest_paid,
+      COALESCE((SELECT SUM(COALESCE(lr.penalty, 0)) FROM loan_repayments lr WHERE lr.loan_id = l.id), 0) AS penalty_paid,
+      COALESCE((SELECT COUNT(*) FROM loan_repayments lr WHERE lr.loan_id = l.id), 0) AS repayment_count,
+      COALESCE(l.total_amount, l.amount) - COALESCE((SELECT SUM(lr.amount) FROM loan_repayments lr WHERE lr.loan_id = l.id), 0) AS remaining_balance,
+      (SELECT lr.date FROM loan_repayments lr WHERE lr.loan_id = l.id ORDER BY lr.date DESC, lr.created_at DESC LIMIT 1) AS last_repayment_date,
+      (SELECT lr.created_at FROM loan_repayments lr WHERE lr.loan_id = l.id ORDER BY lr.date DESC, lr.created_at DESC LIMIT 1) AS last_repayment_at
+    FROM loans l
+    WHERE l.member_id = ?
+    ORDER BY COALESCE(l.approved_date, l.start_date, l.created_at) DESC, l.created_at DESC
+  `).all(memberId);
+}
+
 // Helper: get mail transporter from DB settings or env vars
 function getMailTransporter() {
   const settings = getSettings();
@@ -256,9 +273,7 @@ router.get('/:id', (req, res) => {
       'SELECT * FROM savings WHERE member_id = ? ORDER BY date DESC'
     ).all(id);
 
-    const loans = db.prepare(
-      'SELECT * FROM loans WHERE member_id = ? ORDER BY created_at DESC'
-    ).all(id);
+    const loans = getMemberLoansWithMetrics(id);
 
     res.json({ ...member, savings_history: savings, loans });
   } catch (error) {
@@ -293,9 +308,7 @@ router.get('/:id/statement', (req, res) => {
       "SELECT COALESCE(SUM(amount), 0) AS total FROM savings WHERE member_id = ? AND type = 'withdrawal'"
     ).get(id).total;
 
-    const loans = db.prepare(
-      'SELECT * FROM loans WHERE member_id = ? ORDER BY created_at DESC'
-    ).all(id);
+    const loans = getMemberLoansWithMetrics(id);
 
     const repayments = db.prepare(`
       SELECT lr.* FROM loan_repayments lr
@@ -304,15 +317,20 @@ router.get('/:id/statement', (req, res) => {
       ORDER BY lr.date DESC
     `).all(id);
 
-    const totalRepayments = db.prepare(`
-      SELECT COALESCE(SUM(lr.amount), 0) AS total FROM loan_repayments lr
-      JOIN loans l ON lr.loan_id = l.id
-      WHERE l.member_id = ?
-    `).get(id).total;
-
-    const totalLoanAmount = db.prepare(
-      "SELECT COALESCE(SUM(amount), 0) AS total FROM loans WHERE member_id = ? AND status IN ('active', 'completed')"
-    ).get(id).total;
+    const totalRepayments = repayments.reduce((sum, repayment) => sum + Number(repayment.amount || 0), 0);
+    const totalInterestPaid = repayments.reduce((sum, repayment) => sum + Number(repayment.interest || 0), 0);
+    const totalPenaltyPaid = repayments.reduce((sum, repayment) => sum + Number(repayment.penalty || 0), 0);
+    const totalLoanAmount = loans.reduce((sum, loan) => sum + Number(loan.amount || 0), 0);
+    const totalLoanRepayable = loans.reduce((sum, loan) => sum + Number(loan.total_amount || loan.amount || 0), 0);
+    const outstandingBalance = loans.reduce((sum, loan) => sum + Number(loan.remaining_balance || 0), 0);
+    const completedLoans = loans.filter((loan) => loan.status === 'completed').length;
+    const activeLoans = loans.filter((loan) => loan.status === 'active' || loan.status === 'approved').length;
+    const pendingLoans = loans.filter((loan) => loan.status === 'pending').length;
+    const lastLoan = loans[0] || null;
+    const lastRepayment = repayments[0] || null;
+    const savingsTransactionCount = deposits.length + withdrawals.length;
+    const averageDeposit = deposits.length > 0 ? totalDeposits / deposits.length : 0;
+    const averageRepayment = repayments.length > 0 ? totalRepayments / repayments.length : 0;
 
     res.json({
       member,
@@ -321,8 +339,23 @@ router.get('/:id/statement', (req, res) => {
         total_withdrawals: totalWithdrawals,
         net_savings: totalDeposits - totalWithdrawals,
         total_loan_amount: totalLoanAmount,
+        total_loan_repayable: totalLoanRepayable,
         total_repayments: totalRepayments,
-        outstanding_balance: totalLoanAmount - totalRepayments,
+        outstanding_balance: outstandingBalance,
+        total_interest_paid: totalInterestPaid,
+        total_penalty_paid: totalPenaltyPaid,
+        total_loans_taken: loans.length,
+        active_loans: activeLoans,
+        completed_loans: completedLoans,
+        pending_loans: pendingLoans,
+        repayment_count: repayments.length,
+        savings_transaction_count: savingsTransactionCount,
+        average_deposit: averageDeposit,
+        average_repayment: averageRepayment,
+        last_loan_date: lastLoan?.approved_date || lastLoan?.start_date || null,
+        last_loan_at: lastLoan?.created_at || null,
+        last_repayment_date: lastRepayment?.date || null,
+        last_repayment_at: lastRepayment?.created_at || null,
       },
       deposits,
       withdrawals,

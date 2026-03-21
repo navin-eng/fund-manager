@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLocale } from '../contexts/LocaleContext';
+import { useAuth } from '../contexts/AuthContext';
+import MemberDashboard from './MemberDashboard';
 import {
   Wallet,
   Users,
@@ -119,6 +121,7 @@ function buildRecentActivity(transactions, loans) {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { formatDate, formatCurrency: localeFormatCurrency } = useLocale();
+  const { user } = useAuth();
   const [summary, setSummary] = useState(null);
   const [balanceSheet, setBalanceSheet] = useState(null);
   const [monthlySavingsData, setMonthlySavingsData] = useState([]);
@@ -128,6 +131,11 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (user?.role === 'member') {
+      setLoading(false);
+      return;
+    }
+
     async function fetchData() {
       try {
         setLoading(true);
@@ -170,12 +178,16 @@ export default function Dashboard() {
     }
 
     fetchData();
-  }, []);
+  }, [user?.role]);
 
   const totalFund = summary?.netFundBalance ?? balanceSheet?.fundBalance ?? 0;
   const totalMembers = summary?.memberCount ?? 0;
   const activeLoans = summary?.activeLoans ?? 0;
   const monthlySavings = summary?.totalSavings ?? 0;
+
+  if (user?.role === 'member') {
+    return <MemberDashboard />;
+  }
 
   if (loading) {
     return (

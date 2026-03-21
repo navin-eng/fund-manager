@@ -146,7 +146,7 @@ export default function Reports() {
     return localeFormatDate(dateStr);
   };
 
-  const [period, setPeriod] = useState('monthly');
+  const [period, setPeriod] = useState('yearly');
   const [date, setDate] = useState(() => getTodayDateInputValue());
   const [loading, setLoading] = useState({});
   const [summary, setSummary] = useState(null);
