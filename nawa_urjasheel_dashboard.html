@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>नव उर्जाशील साथी बचत कोष — Complete Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0b0f14;--sur:#131920;--sur2:#1a2130;--bdr:#243040;
+  --gold:#c9a227;--gold2:#e8b84b;--green:#3fb950;--red:#f85149;
+  --blue:#58a6ff;--purple:#a371f7;--teal:#56d3db;--orange:#f0883e;
+  --txt:#e6edf3;--txt2:#8b949e;--txt3:#6e7681;
+  --r:12px;--rs:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
+
+/* HEADER */
+.hdr{background:#0d1219;border-bottom:1px solid var(--bdr);position:sticky;top:0;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.6)}
+.hinner{max-width:1600px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.logo{width:42px;height:42px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.org-np{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--gold2);line-height:1.2}
+.org-en{font-size:10px;color:var(--txt2);letter-spacing:1px;text-transform:uppercase}
+.hbadge{background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.25);border-radius:20px;padding:4px 11px;font-size:11px;color:var(--gold2)}
+nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-left:auto;flex-shrink:0}
+nav::-webkit-scrollbar{display:none}
+.ntab{padding:7px 13px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
+.ntab:hover{color:var(--txt)}
+.ntab.active{color:var(--gold2);border-bottom-color:var(--gold)}
+
+main{max-width:1600px;margin:0 auto;padding:22px 24px}
+.panel{display:none;animation:fi .25s ease}
+.panel.active{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* KPI */
+.kpig{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden;transition:transform .15s}
+.kpi:hover{transform:translateY(-2px)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.k-gold::before{background:linear-gradient(90deg,var(--gold),var(--gold2))}
+.k-green::before{background:linear-gradient(90deg,#1a7f37,var(--green))}
+.k-red::before{background:linear-gradient(90deg,#da3633,var(--red))}
+.k-blue::before{background:linear-gradient(90deg,#1f6feb,var(--blue))}
+.k-purple::before{background:linear-gradient(90deg,#6e40c9,var(--purple))}
+.k-teal::before{background:linear-gradient(90deg,#1b7c83,var(--teal))}
+.k-orange::before{background:linear-gradient(90deg,#c9510c,var(--orange))}
+.klbl{font-size:9.5px;color:var(--txt2);text-transform:uppercase;letter-spacing:.9px;margin-bottom:7px}
+.kval{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;line-height:1;margin-bottom:4px}
+.kval.gold{color:var(--gold2)}.kval.green{color:var(--green)}.kval.red{color:var(--red)}
+.kval.blue{color:var(--blue)}.kval.teal{color:var(--teal)}.kval.orange{color:var(--orange)}.kval.purple{color:var(--purple)}
+.ksub{font-size:9.5px;color:var(--txt3);line-height:1.4}
+
+/* SECTION TITLE */
+.stitle{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:var(--txt);margin:0 0 13px;display:flex;align-items:center;gap:9px}
+.stitle::after{content:'';flex:1;height:1px;background:var(--bdr)}
+
+/* CARD */
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:18px}
+.mb{margin-bottom:18px}
+.ctitle{font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.ctag{background:var(--sur2);border:1px solid var(--bdr);border-radius:4px;padding:2px 8px;font-size:10px;color:var(--txt3);font-weight:400;letter-spacing:0}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:18px}
+
+/* CHART CONTAINERS */
+.ch-m{height:300px;position:relative}
+.ch-t{height:250px;position:relative}
+.ch-s{height:200px;position:relative}
+
+/* TABLE */
+.tw{overflow-x:auto;border-radius:var(--rs);border:1px solid var(--bdr)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{background:var(--sur2);padding:10px 12px;text-align:left;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.4px;font-size:10px;border-bottom:1px solid var(--bdr);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--bdr);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.022)}
+tbody td{padding:9px 12px;color:var(--txt);vertical-align:middle}
+tbody td:first-child{color:var(--txt3);font-size:11px}
+.cr{color:var(--green);font-weight:500}
+.dr{color:var(--red);font-weight:500}
+.neu{color:var(--blue)}
+.hl td{background:rgba(201,162,39,.05)!important}
+
+/* BADGES */
+.b{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap}
+.b-sav{background:rgba(88,166,255,.1);color:var(--blue);border:1px solid rgba(88,166,255,.25)}
+.b-lo{background:rgba(201,162,39,.1);color:var(--gold2);border:1px solid rgba(201,162,39,.25)}
+.b-clr{background:rgba(63,185,80,.1);color:var(--green);border:1px solid rgba(63,185,80,.25)}
+.b-int{background:rgba(163,113,247,.1);color:var(--purple);border:1px solid rgba(163,113,247,.25)}
+.b-ref{background:rgba(248,81,73,.1);color:var(--red);border:1px solid rgba(248,81,73,.25)}
+.b-bk{background:rgba(86,211,219,.1);color:var(--teal);border:1px solid rgba(86,211,219,.25)}
+.b-adj{background:rgba(240,136,62,.1);color:var(--orange);border:1px solid rgba(240,136,62,.25)}
+.b-act{background:rgba(63,185,80,.1);color:var(--green);border:1px solid rgba(63,185,80,.25)}
+.b-ina{background:rgba(248,81,73,.1);color:var(--red);border:1px solid rgba(248,81,73,.25)}
+
+/* FILTERS */
+.fbar{display:flex;gap:9px;margin-bottom:13px;flex-wrap:wrap;align-items:center}
+.si{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rs);padding:7px 12px;color:var(--txt);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;flex:1;min-width:160px;transition:border-color .15s}
+.si:focus{border-color:var(--gold)}
+.si::placeholder{color:var(--txt3)}
+.ss{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rs);padding:7px 12px;color:var(--txt);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;cursor:pointer}
+.ss option{background:var(--sur2)}
+.sstat{font-size:10.5px;color:var(--txt3);padding:8px 12px;border-top:1px solid var(--bdr)}
+
+/* MEMBER CARDS */
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:13px}
+.mcard{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;position:relative;overflow:hidden;transition:all .15s}
+.mcard:hover{border-color:rgba(201,162,39,.5);box-shadow:0 0 16px rgba(201,162,39,.08);transform:translateY(-2px)}
+.mcard.ina{opacity:.55;border-style:dashed}
+.mno{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--bdr);position:absolute;top:10px;right:13px;line-height:1}
+.mname{font-size:14.5px;font-weight:600;color:var(--txt);margin:6px 0 2px}
+.minfo{font-size:11px;color:var(--txt3);line-height:1.6;margin-bottom:11px}
+.mstats{display:flex;gap:12px}
+.ms{flex:1}
+.msl{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.msv{font-size:12.5px;font-weight:600}
+
+/* DISTRIBUTION CARDS */
+.dp{background:var(--sur2);border:1px solid var(--bdr);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.dph{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px;padding-bottom:9px;border-bottom:1px solid var(--bdr)}
+.dpt{font-size:12.5px;font-weight:600;color:var(--gold2)}
+.drow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(36,48,64,.5);font-size:12px}
+.drow:last-child{border-bottom:none}
+.drl{color:var(--txt2)}
+.drv{font-weight:600}
+
+/* SHEET2 */
+.s2wrap{overflow-x:auto}
+.s2{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+.s2 th{background:var(--sur2);padding:9px 11px;border:1px solid var(--bdr);color:var(--txt2);font-size:10px;text-transform:uppercase;letter-spacing:.3px;text-align:center}
+.s2 td{padding:8px 11px;border:1px solid var(--bdr);text-align:center;color:var(--txt)}
+.s2 .nl{text-align:left;font-weight:500}
+.s2 .tot td{background:var(--sur2)!important;font-weight:700;color:var(--gold2)}
+.s2 .sum td{background:rgba(201,162,39,.05)!important;color:var(--gold2);font-size:11.5px}
+
+/* INFO BOX */
+.info{padding:12px 15px;background:rgba(88,166,255,.06);border:1px solid rgba(88,166,255,.18);border-radius:var(--rs);font-size:12px;color:var(--txt2);margin-bottom:14px;line-height:1.65}
+
+@media(max-width:900px){main{padding:14px}.g2,.g21,.g3{grid-template-columns:1fr}.kpig{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:540px){.kpig{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hinner">
+    <div class="logo">🏦</div>
+    <div>
+      <div class="org-np">नव उर्जाशील साथी बचत कोष</div>
+      <div class="org-en">Nawa Urjasheel Sathi Saving Fund</div>
+    </div>
+    <div class="hbadge">स्थापना २०८०-११-३०</div>
+    <nav>
+      <button class="ntab active" onclick="go('overview',this)">📊 Overview</button>
+      <button class="ntab" onclick="go('members',this)">👥 Members</button>
+      <button class="ntab" onclick="go('ledger',this)">📋 Fund Ledger</button>
+      <button class="ntab" onclick="go('savings',this)">💰 Savings</button>
+      <button class="ntab" onclick="go('loans',this)">🏷️ Loans</button>
+      <button class="ntab" onclick="go('income',this)">📈 Income</button>
+      <button class="ntab" onclick="go('dist',this)">🎁 Distribution</button>
+      <button class="ntab" onclick="go('reserve',this)">🔒 Reserve</button>
+      <button class="ntab" onclick="go('sheet1',this)">🧮 Sheet1</button>
+      <button class="ntab" onclick="go('sheet2',this)">📐 Sheet2</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- OVERVIEW -->
+<div id="p-overview" class="panel active">
+  <div class="kpig" id="ovKpi"></div>
+  <div class="stitle">Fund Balance Timeline — कोष हिसाब</div>
+  <div class="card mb"><div class="ctitle">All 146 transactions balance trend <span class="ctag">2080-11-30 → 2082-11-12</span></div><div class="ch-m"><canvas id="cFund"></canvas></div></div>
+  <div class="g21">
+    <div class="card"><div class="ctitle">Active Loan Balances <span class="ctag">Current outstanding</span></div><div class="ch-t"><canvas id="cLoan"></canvas></div></div>
+    <div class="card"><div class="ctitle">Income per Period <span class="ctag">5 completed periods</span></div><div class="ch-t"><canvas id="cIncPie"></canvas></div></div>
+  </div>
+  <div class="card mb"><div class="ctitle">Member Savings Balances</div><div class="ch-s"><canvas id="cSav"></canvas></div></div>
+  <div class="stitle">Recent 20 Fund Transactions</div>
+  <div class="card"><div class="tw"><table><thead><tr><th>#</th><th>Date</th><th>Particulars</th><th>Debit Rs.</th><th>Credit Rs.</th><th>Balance Rs.</th><th>Type</th></tr></thead><tbody id="tbRecent"></tbody></table></div></div>
+</div>
+
+<!-- MEMBERS -->
+<div id="p-members" class="panel">
+  <div class="stitle">सदस्यहरुको नामावली — Member Directory</div>
+  <div class="info">16 total members listed in समूह विवरण sheet. क्र.स. = Member Number. निष्क्रिय = Inactive (Pasang Tamang & Bishal Khadka withdrew).</div>
+  <div class="mgrid" id="mgrid"></div>
+</div>
+
+<!-- FUND LEDGER -->
+<div id="p-ledger" class="panel">
+  <div class="stitle">कोष हिसाब — Complete Fund Ledger</div>
+  <div class="fbar">
+    <input class="si" id="ldgQ" placeholder="🔍 Search particulars…" oninput="filterLedger()">
+    <select class="ss" id="ldgT" onchange="filterLedger()">
+      <option value="">All Types</option>
+      <option value="sav">Saving</option>
+      <option value="lo">Loan Out</option>
+      <option value="clr">Clearance/Received</option>
+      <option value="int">Interest</option>
+      <option value="ref">Refund</option>
+      <option value="bk">Bank Interest</option>
+      <option value="adj">Adjustment</option>
+    </select>
+  </div>
+  <div class="card">
+    <div class="tw"><table><thead><tr><th>#</th><th>Date</th><th>Particulars</th><th>Debit Rs.</th><th>Credit Rs.</th><th>Cr. Balance Rs.</th><th>Type</th></tr></thead><tbody id="tbLedger"></tbody></table></div>
+    <div class="sstat" id="ldgStat"></div>
+  </div>
+</div>
+
+<!-- SAVINGS -->
+<div id="p-savings" class="panel">
+  <div class="stitle">निक्षेप संकलन विवरण — Individual Savings Ledgers (16 members)</div>
+  <div class="fbar">
+    <select class="ss" id="savMem" onchange="renderSavings()">
+      <option value="__all__">— All Members —</option>
+    </select>
+  </div>
+  <div id="savContent"></div>
+</div>
+
+<!-- LOANS -->
+<div id="p-loans" class="panel">
+  <div class="stitle">कर्जा लगानी विवरण — Loan Ledgers (14 borrowers)</div>
+  <div class="kpig" id="loanKpis" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"></div>
+  <div class="fbar">
+    <select class="ss" id="loanMem" onchange="renderLoans()">
+      <option value="__all__">— All Borrowers —</option>
+    </select>
+  </div>
+  <div id="loanContent"></div>
+</div>
+
+<!-- INCOME -->
+<div id="p-income" class="panel">
+  <div class="stitle">आम्दानी विवरण — Income Statements (6 periods)</div>
+  <div class="g2">
+    <div class="card"><div class="ctitle">Income Per Period (5 completed)</div><div class="ch-t"><canvas id="cIncBar"></canvas></div></div>
+    <div class="card"><div class="ctitle">Bonus vs Reserve Distribution</div><div class="ch-t"><canvas id="cDistBar"></canvas></div></div>
+  </div>
+  <div class="fbar">
+    <select class="ss" id="incPer" onchange="renderIncomePeriod()" style="flex:1">
+      <option value="0">Period 1 — आर्थिक वर्ष २०८०/०८१ (upto 2081-03-31)</option>
+      <option value="1">Period 2 — आर्थिक वर्ष २०८१/०८२: साउन–पुस (upto 2081-09-29)</option>
+      <option value="2">Period 3 — आर्थिक वर्ष २०८१/०८२: माघ–असाढ (upto 2082-03-32)</option>
+      <option value="3">Period 4 — आर्थिक वर्ष २०८२/०८३: साउन–असोज (upto 2082-06-31)</option>
+      <option value="4">Period 5 — आर्थिक वर्ष २०८२/०८३: कार्तिक–पुस (upto 2082-09-30)</option>
+      <option value="5">Period 6 — आर्थिक वर्ष २०८२/०८३: माघ–२०८३ असार (upcoming)</option>
+    </select>
+  </div>
+  <div class="card mb" id="incCard">
+    <div class="tw"><table><thead><tr><th>#</th><th>Date</th><th>Particulars</th><th>Cr. Amount Rs.</th><th>Cr. Balance Rs.</th></tr></thead><tbody id="tbInc"></tbody></table></div>
+    <div class="sstat" id="incStat"></div>
+  </div>
+</div>
+
+<!-- DISTRIBUTION -->
+<div id="p-dist" class="panel">
+  <div class="stitle">आम्दानी वितरण हिसाब — Income Distribution Records</div>
+  <div class="info">Every distribution event from the आम्दानी वितरण हिसाब sheet. 5 completed rounds. Each round: Income credited → Bonus distributed to members → Remainder moved to Reserve Fund.</div>
+  <div id="distCards"></div>
+  <div class="stitle" style="margin-top:4px">Raw Distribution Ledger (all 15 entries)</div>
+  <div class="card">
+    <div class="tw"><table><thead><tr><th>#</th><th>Date</th><th>Particulars</th><th>Debit Rs.</th><th>Credit Rs.</th><th>Cr. Balance Rs.</th></tr></thead>
+    <tbody id="tbDist"></tbody></table></div>
+  </div>
+</div>
+
+<!-- RESERVE FUND -->
+<div id="p-reserve" class="panel">
+  <div class="stitle">जगेडा कोष हिसाब — Reserve Fund Ledger</div>
+  <div class="kpig" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi k-teal"><div class="klbl">Current Balance</div><div class="kval teal">₨ 493.26</div><div class="ksub">As of 2082-09-30</div></div>
+    <div class="kpi k-green"><div class="klbl">Total Ever Credited</div><div class="kval green">₨ 2,255.63</div><div class="ksub">Across 5 contribution events</div></div>
+    <div class="kpi k-blue"><div class="klbl">Moved to Income (2082-04-01)</div><div class="kval blue">₨ 1,762.37</div><div class="ksub">Transferred to Period 3 income pool</div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="ctitle">Reserve Balance Over Time</div><div class="ch-t"><canvas id="cRes"></canvas></div></div>
+    <div class="card"><div class="ctitle">जगेडा कोष — Complete Ledger (6 entries)</div>
+      <div class="tw"><table><thead><tr><th>#</th><th>Date</th><th>Particulars</th><th>Debit Rs.</th><th>Credit Rs.</th><th>Cr. Balance Rs.</th></tr></thead>
+      <tbody id="tbRes"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- SHEET1 -->
+<div id="p-sheet1" class="panel">
+  <div class="stitle">Sheet1 — Helper Calculation Reference</div>
+  <div class="info">Sheet1 contains a single column of numeric values used as calculation references in the workbook. These correspond to early credit transactions in the fund ledger (initial savings, loan amounts, interest received, etc.). 24 values total; cumulative total = ₨ 3,17,072.92.</div>
+  <div class="card">
+    <div class="tw"><table><thead><tr><th>Row</th><th>Value (Rs.)</th><th>Running Total (Rs.)</th></tr></thead>
+    <tbody id="tbSheet1"></tbody></table></div>
+  </div>
+</div>
+
+<!-- SHEET2 -->
+<div id="p-sheet2" class="panel">
+  <div class="stitle">Sheet2 — Income Distribution Calculation (2081-04-01 to 2081-09-29)</div>
+  <div class="info" id="s2info"></div>
+  <div class="card">
+    <div class="s2wrap">
+      <table class="s2"><thead>
+        <tr><th>SN</th><th class="nl">Name</th><th>Opening Balance<br>(2081-04-01)</th><th>Closing Balance<br>(2081-09-29)</th><th>Average Balance</th><th>Days</th><th>Income to Split</th><th>Average Income</th><th>Avg. Income/Day</th><th>Col 10</th><th>Total Income</th></tr>
+      </thead><tbody id="tbSheet2"></tbody></table>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ═══════════ DATA (extracted verbatim from Excel) ═══════════
+const DATA = {"org_np": "नव उर्जाशील साथी बचत कोष", "org_en": "Nawa Urjasheel Sathi Saving Fund", "members": [{"no": "1", "name": "बिशाल राई", "addr": "सुन्दर्हरैंचा न.पा., वडा न. १०, त्रिवेणीचौक", "phone": "९८४२१४७८०४/ ९८१७३९८२१५", "joined": "2080-11-30", "status": "active"}, {"no": "2", "name": "शिव कुमार ताजपुरिया", "addr": "रंगेली न.पा., वडा न. ९, सखुवाथान", "phone": "९८४६८९६२७३/ ९८१४३७८८३८", "joined": "2080-11-30", "status": "active"}, {"no": "3", "name": "निरज नेपाल", "addr": "बेलबारी न.पा., वडा न. ३", "phone": "९८६२२३२९८९/ ९८१६३८३८९०", "joined": "2080-11-30", "status": "active"}, {"no": "4", "name": "कृष्ण न्यौपाने", "addr": "बेलबारी न.पा., वडा न. २", "phone": "९८४२४०२४७१/ ९८१४३१५०१३", "joined": "2080-11-30", "status": "active"}, {"no": "5", "name": "रोशन परियार", "addr": "बेलबारी न.पा., वडा न. ११, नलबारी", "phone": "९८४२३४२७४४/ ९८०४३०९९७७", "joined": "2080-11-30", "status": "active"}, {"no": "6", "name": "आशिष भुजेल", "addr": "बेलबारी न.पा., वडा न. २", "phone": "9815337480", "joined": "2080-11-30", "status": "active"}, {"no": "7", "name": "नविन निरौला", "addr": "इटहरी उ.म.न.पा., वडा न. ६, जुट विकास रोड", "phone": "९८४५७४७७६३/ ९८१४९७०५०४", "joined": "2080-11-30", "status": "active"}, {"no": "8", "name": "प्रकाश बस्नेत", "addr": "बेलबारी न.पा., वडा न. ४, हिमाली चौक", "phone": "९८५२०४०७०२/ ९८०४०२०७०२", "joined": "2080-11-30", "status": "active"}, {"no": "निष्क्रिय", "name": "पासाङ तामांग", "addr": "चौबिसे गा.पा., वडा न. ६, बुधबारे बजार", "phone": "९७४२२८६२३६/ ९८१२३४०३६६", "joined": "2080-11-30", "status": "inactive"}, {"no": "9", "name": "दिवेश कुम्हार", "addr": "सुनवर्शी न.पा., वडा न. ९, डाइनियां कदमगाछी, कुम्हार टोल", "phone": "९८६२३०८१३९/ ९८००९००८१४", "joined": "2080-11-30", "status": "active"}, {"no": "10", "name": "सन्देश गिरी", "addr": "बेलबारी न.पा., वडा न. २, सिंहदेवी डांडा", "phone": "९८६२३९७५२१/", "joined": "2080-11-30", "status": "active"}, {"no": "11", "name": "रुपक कटवाल", "addr": "इटहरी उ.म.न.पा., वडा न. , पचरुकी", "phone": "9844357662", "joined": "2080-11-30", "status": "active"}, {"no": "12", "name": "अर्जुन ढुंगाना", "addr": "मिक्लाजुंग गा.पा., वडा न. ८, तोरीबारी", "phone": "९८६२३११२९६/ ९८०५३०६२१७", "joined": "2080-12-21", "status": "active"}, {"no": "13", "name": "परिश रायमाझी", "addr": "सुन्दर्हरैंचा न.पा., वडा न. ९", "phone": "", "joined": "2081-07-03", "status": "active"}, {"no": "14", "name": "सुवाष गिरी", "addr": "बेलबारी न. पा., वडा न. २, लालभित्ती, मोरंग", "phone": "", "joined": "2081-09-05", "status": "active"}, {"no": "निष्क्रिय", "name": "बिशाल खड्का", "addr": "धर्मदेवी नगरपालिका, वडा न. १, तेल्लोक, संखुवासभा", "phone": "९८६८८०९१८२/ ९८१६३०३८२९", "joined": "2081-10-05", "status": "inactive"}], "ledger": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 36000.0, "b": 36000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 12000.0, "b": 48000.0}, {"d": "2080-12-13", "p": "Loan to Roshan Pariyar", "dr": 38000.0, "cr": null, "b": 10000.0}, {"d": "2080-12-22", "p": "Saving by Arjun Dhungana", "dr": null, "cr": 4000.0, "b": 14000.0}, {"d": "2081-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 13000.0, "b": 27000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 25000.0, "b": 52000.0}, {"d": "2081-02-05", "p": "Loan to Krishna Neupane", "dr": 40000.0, "cr": null, "b": 12000.0}, {"d": "2081-03-04", "p": "Partial loan clearance by Roshan Pariyar", "dr": null, "cr": 13000.0, "b": 25000.0}, {"d": "2081-03-04", "p": "Loan clearance by Krishna Neupane", "dr": null, "cr": 40000.0, "b": 65000.0}, {"d": "2081-03-04", "p": "Interest received from Loan to Krishna Neupane", "dr": null, "cr": 395.0, "b": 65395.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 25000.0, "b": 90395.0}, {"d": "2081-03-06", "p": "Loan to Niraj Nepal", "dr": 80000.0, "cr": null, "b": 10395.0}, {"d": "2081-04-01", "p": "Bank interest received (upto 2081-03-31)", "dr": null, "cr": 191.92, "b": 10586.92}, {"d": "2081-04-04", "p": "Interest received from Loan to Roshan Pariyar", "dr": null, "cr": 1271.0, "b": 11857.92}, {"d": "2081-04-04", "p": "Interest received from Loan to Niraj Nepal", "dr": null, "cr": 658.0, "b": 12515.92}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 25000.0, "b": 37515.92}, {"d": "2081-04-14", "p": "Loan to Ashish Bhujel", "dr": 27500.0, "cr": null, "b": 10015.919999999998}, {"d": "2081-04-32", "p": "Loan clearance by Roshan Pariyar", "dr": null, "cr": 25000.0, "b": 35015.92}, {"d": "2081-04-32", "p": "Interest received from Loan to Roshan Pariyar", "dr": null, "cr": 263.0, "b": 35278.92}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 25000.0, "b": 60278.92}, {"d": "2081-05-04", "p": "Loan to Roshan Pariyar", "dr": 50000.0, "cr": null, "b": 10278.919999999998}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 25000.0, "b": 35278.92}, {"d": "2081-06-06", "p": "Loan to Bishal Rai", "dr": 25000.0, "cr": null, "b": 10278.919999999998}, {"d": "2081-07-01", "p": "Bank interest received (upto 2081-06-30)", "dr": null, "cr": 120.08, "b": 10398.999999999998}, {"d": "2081-07-02", "p": "Interest received from Loan to Niraj Nepal", "dr": null, "cr": 2446.0, "b": 12844.999999999998}, {"d": "2081-07-03", "p": "Interest received from Loan to Ashish Bhujel", "dr": null, "cr": 714.0, "b": 13558.999999999998}, {"d": "2081-07-04", "p": "Interest received from Loan to Roshan Pariyar", "dr": null, "cr": 937.0, "b": 14495.999999999998}, {"d": "2081-07-05", "p": "Interest received from Loan to Bishal Rai", "dr": null, "cr": 197.0, "b": 14692.999999999998}, {"d": "2081-07-05", "p": "Saving by Perish Rayamajhi", "dr": null, "cr": 15000.0, "b": 29693.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 27000.0, "b": 56693.0}, {"d": "2081-07-05", "p": "Loan to Bishal Rai", "dr": 35000.0, "cr": null, "b": 21693.0}, {"d": "2081-08-06", "p": "Saving (Mangshir)", "dr": null, "cr": 27000.0, "b": 48693.0}, {"d": "2081-08-07", "p": "Loan to Prakash Basnet", "dr": 38500.0, "cr": null, "b": 10193.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 27000.0, "b": 37193.0}, {"d": "2081-09-05", "p": "Partial Loan clearance by Ashish Bhujel", "dr": null, "cr": 11000.0, "b": 48193.0}, {"d": "2081-09-05", "p": "Saving by Suvas Giri", "dr": null, "cr": 21000.0, "b": 69193.0}, {"d": "2081-09-08", "p": "Loan to Krishna Neupane", "dr": 59000.0, "cr": null, "b": 10193.0}, {"d": "2081-09-21", "p": "Loan clearance by Roshan Pariyar", "dr": null, "cr": 50000.0, "b": 60193.0}, {"d": "2081-09-21", "p": "Interest received from Loan to Roshan Pariyar", "dr": null, "cr": 1331.0, "b": 61524.0}, {"d": "2081-09-22", "p": "Loan to Rupak Katwal", "dr": 50000.0, "cr": null, "b": 11524.0}, {"d": "2081-10-01", "p": "Bank interest received (upto 2081-09-29)", "dr": null, "cr": 122.37, "b": 11646.37}, {"d": "2081-10-05", "p": "Interest received from Loan to Krishna Neupane", "dr": null, "cr": 407.0, "b": 12053.37}, {"d": "2081-10-05", "p": "Interest received from Loan to Niraj Nepal", "dr": null, "cr": 2341.0, "b": 14394.37}, {"d": "2081-10-05", "p": "Interest received from Loan to Ashish Bhujel", "dr": null, "cr": 650.0, "b": 15044.37}, {"d": "2081-10-05", "p": "Interest received from Loan to Bishal Rai", "dr": null, "cr": 1675.0, "b": 16719.370000000003}, {"d": "2081-10-05", "p": "Interest received from Loan to Prakash Basnet", "dr": null, "cr": 658.0, "b": 17377.370000000003}, {"d": "2081-10-05", "p": "Interest received from Loan to Rupak Katwal", "dr": null, "cr": 115.0, "b": 17492.370000000003}, {"d": "2081-10-05", "p": "Partial Loan clearance by Ashish Bhujel", "dr": null, "cr": 8000.0, "b": 25492.370000000003}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 27000.0, "b": 52492.37}, {"d": "2081-10-05", "p": "Saving by Bishal Khadka", "dr": null, "cr": 12000.0, "b": 64492.37}, {"d": "2081-10-09", "p": "Refund to Pasang Tamang", "dr": 21980.0, "cr": null, "b": 42512.37}, {"d": "2081-10-09", "p": "Partial Loan Clearance by Prakash Basnet", "dr": null, "cr": 4500.0, "b": 47012.37}, {"d": "2081-10-10", "p": "Loan to Krishna Neupane", "dr": 21000.0, "cr": null, "b": 26012.370000000003}, {"d": "2081-10-25", "p": "Loan clearance by Rupak Katwal", "dr": null, "cr": 50395.0, "b": 76407.37}, {"d": "2081-10-25", "p": "Loan to Roshan Pariyar", "dr": 66000.0, "cr": null, "b": 10407.369999999995}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 27000.0, "b": 37407.369999999995}, {"d": "2081-11-05", "p": "Interest received from Krishna Neupane", "dr": null, "cr": 800.0, "b": 38207.369999999995}, {"d": "2081-11-05", "p": "Interest received from Prakash Basnet", "dr": null, "cr": 349.0, "b": 38556.369999999995}, {"d": "2081-11-05", "p": "Saving by Bishal Khadka", "dr": null, "cr": 13000.0, "b": 51556.369999999995}, {"d": "2081-11-11", "p": "Loan to Bishal Khadka", "dr": 12000.0, "cr": null, "b": 39556.369999999995}, {"d": "2081-11-15", "p": "Bank Interest Received (At closure of Account)", "dr": null, "cr": 94.34, "b": 39650.70999999999}, {"d": "2081-12-01", "p": "Partial Loan Clearance by Bishal Rai", "dr": null, "cr": 25000.0, "b": 64650.70999999999}, {"d": "2081-12-01", "p": "Partial Loan Clearance by Niraj Nepal", "dr": null, "cr": 10000.0, "b": 74650.70999999999}, {"d": "2081-12-02", "p": "Loan to Sandesh Giri", "dr": 3000.0, "cr": null, "b": 71650.70999999999}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 29000.0, "b": 100650.70999999999}, {"d": "2081-12-05", "p": "Interest received from Krishna Neupane", "dr": null, "cr": 683.0, "b": 101333.70999999999}, {"d": "2081-12-14", "p": "Loan Clearance by Ashish Bhujel", "dr": null, "cr": 8871.0, "b": 110204.70999999999}, {"d": "2081-12-21", "p": "Loan to Suvas Giri", "dr": 80000.0, "cr": null, "b": 30204.709999999992}, {"d": "2081-12-22", "p": "Loan Clearance by Bishal Rai", "dr": null, "cr": 36417.0, "b": 66621.70999999999}, {"d": "2081-12-22", "p": "Loan Clearance by Prakash Basnet", "dr": null, "cr": 34570.0, "b": 101191.70999999999}, {"d": "2082-01-01", "p": "Loan Clearance by Sandesh Giri", "dr": null, "cr": 3028.0, "b": 104219.70999999999}, {"d": "2082-01-01", "p": "Loan to Ashish Bhujel", "dr": 80000.0, "cr": null, "b": 24219.709999999992}, {"d": "2082-01-03", "p": "Interest received from Bishal Khadka", "dr": null, "cr": 193.0, "b": 24412.709999999992}, {"d": "2082-01-03", "p": "Interest received from Suvas Giri", "dr": null, "cr": 263.0, "b": 24675.709999999992}, {"d": "2082-01-03", "p": "Interest received from Roshan Pariyar", "dr": null, "cr": 1410.0, "b": 26085.709999999992}, {"d": "2082-01-03", "p": "Interest received from Niraj Nepal", "dr": null, "cr": 4530.0, "b": 30615.709999999992}, {"d": "2082-01-03", "p": "Interest received from Krishna Neupane", "dr": null, "cr": 815.0, "b": 31430.709999999992}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 72000.0, "b": 103430.70999999999}, {"d": "2082-01-03", "p": "Loan to Dibesh Kumhar", "dr": 50000.0, "cr": null, "b": 53430.70999999999}, {"d": "2082-01-05", "p": "Loan to Bishal Khadka", "dr": 10000.0, "cr": null, "b": 43430.70999999999}, {"d": "2082-01-26", "p": "Loan to Sandesh Giri", "dr": 5000.0, "cr": null, "b": 38430.70999999999}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 29000.0, "b": 67430.70999999999}, {"d": "2082-02-13", "p": "Loan to Arjun Dhungana", "dr": 67000.0, "cr": null, "b": 430.70999999999185}, {"d": "2082-03-05", "p": "Saving (Adhadh)", "dr": null, "cr": 29000.0, "b": 29430.709999999992}, {"d": "2082-03-12", "p": "Loan clearance by Dibesh Kumhar", "dr": null, "cr": 51149.0, "b": 80579.70999999999}, {"d": "2082-04-01", "p": "Bank Interest Received (Upto 2082-03-32)", "dr": null, "cr": 288.92, "b": 80868.62999999999}, {"d": "2082-04-01", "p": "Loan Clearance by Roshan Rariyar", "dr": null, "cr": 68040.0, "b": 148908.63}, {"d": "2082-04-01", "p": "Partial Loan Clearance by Niraj Nepal", "dr": null, "cr": 44326.0, "b": 193234.63}, {"d": "2082-04-02", "p": "Loan to Shiv Kumar Tajpuriya", "dr": 30000.0, "cr": null, "b": 163234.63}, {"d": "2082-04-04", "p": "Refund to Bishal Khadka", "dr": 37348.0, "cr": null, "b": 125886.63}, {"d": "2082-04-04", "p": "Loan Clearance by Bishal Khadka", "dr": null, "cr": 22662.0, "b": 148548.63}, {"d": "2082-04-05", "p": "Loan to Navin Niroula", "dr": 80000.0, "cr": null, "b": 68548.63}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 27000.0, "b": 95548.63}, {"d": "2082-04-05", "p": "Interest Collection (Upto 2082-03-32)", "dr": null, "cr": 8623.0, "b": 104171.63}, {"d": "2082-04-12", "p": "Loan Clearance by Sandesh Giri", "dr": null, "cr": 5018.0, "b": 109189.63}, {"d": "2082-04-14", "p": "Loan to Sandesh Giri", "dr": 25000.0, "cr": null, "b": 84189.63}, {"d": "2082-04-24", "p": "Loan Clearance by Sandesh Giri", "dr": null, "cr": 25074.0, "b": 109263.63}, {"d": "2082-04-25", "p": "Partial Loan Clearance by Krishna Neupane", "dr": null, "cr": 59407.0, "b": 168670.63}, {"d": "2082-04-26", "p": "Loan to Prakash Basnet", "dr": 50000.0, "cr": null, "b": 118670.63}, {"d": "2082-04-27", "p": "Loan to Shiv Kumar Tajpuriya", "dr": 70000.0, "cr": null, "b": 48670.630000000005}, {"d": "2082-05-06", "p": "Partial Loan Clearance by Navin Niroula", "dr": null, "cr": 20000.0, "b": 68670.63}, {"d": "2082-05-06", "p": "Saving (Bhadra)", "dr": null, "cr": 28000.0, "b": 96670.63}, {"d": "2082-05-08", "p": "Loan to Dibesh Kumhar", "dr": 50000.0, "cr": null, "b": 46670.630000000005}, {"d": "2082-05-21", "p": "Loan clearance by Krishna Neupane", "dr": null, "cr": 21352.0, "b": 68022.63}, {"d": "2082-05-30", "p": "Partial Loan clearance by Navin Niroula", "dr": null, "cr": 25000.0, "b": 93022.63}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 28000.0, "b": 121022.63}, {"d": "2082-06-05", "p": "Interest received from Ashish Bhujel", "dr": null, "cr": 2445.0, "b": 123467.63}, {"d": "2082-06-09", "p": "Loan to Krishna Neupane", "dr": 23000.0, "cr": null, "b": 100467.63}, {"d": "2082-06-10", "p": "Loan Clearance by Prakash Basnet", "dr": null, "cr": 50755.0, "b": 151222.63}, {"d": "2082-06-10", "p": "Loan clearance by Dibesh Kumhar", "dr": null, "cr": 50542.0, "b": 201764.63}, {"d": "2082-06-12", "p": "Loan to Krishna Neupane", "dr": 77000.0, "cr": null, "b": 124764.63}, {"d": "2082-06-27", "p": "Loan to Roshan Pariyar", "dr": 100000.0, "cr": null, "b": 24764.630000000005}, {"d": "2082-06-31", "p": "Loan clearance by Navin Niroula", "dr": null, "cr": 36675.0, "b": 61439.630000000005}, {"d": "2082-06-31", "p": "Interest Collection (Upto 2082-06-31)", "dr": null, "cr": 9387.0, "b": 70826.63}, {"d": "2082-06-31", "p": "Adjustment Saving", "dr": null, "cr": 1836.0, "b": 72662.63}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 28000.0, "b": 100662.63}, {"d": "2082-06-31", "p": "Bank Interest Received (Upto 2082-06-31)", "dr": null, "cr": 626.58, "b": 101289.21}, {"d": "2082-07-16", "p": "Loan to Dibesh Kumhar", "dr": 30000.0, "cr": null, "b": 71289.21}, {"d": "2082-07-22", "p": "Loan clearance by Roshan Pariyar", "dr": null, "cr": 100854.0, "b": 172143.21000000002}, {"d": "2082-08-04", "p": "Loan to Sandesh Giri", "dr": 10000.0, "cr": null, "b": 162143.21000000002}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 28000.0, "b": 190143.21000000002}, {"d": "2082-08-09", "p": "Loan to Prakash Basnet", "dr": 50000.0, "cr": null, "b": 140143.21000000002}, {"d": "2082-08-17", "p": "Loan to Bishal Rai", "dr": 50000.0, "cr": null, "b": 90143.21000000002}, {"d": "2082-08-21", "p": "Loan to Bishal Rai", "dr": 50000.0, "cr": null, "b": 40143.21000000002}, {"d": "2082-08-28", "p": "Loan Clearance by Ashish Bhujel", "dr": null, "cr": 83000.0, "b": 123143.21000000002}, {"d": "2082-08-28", "p": "Loan to Roshan Pariyar", "dr": 100000.0, "cr": null, "b": 23143.21000000002}, {"d": "2082-09-01", "p": "Loan to Dibesh Kumhar", "dr": 20000.0, "cr": null, "b": 3143.210000000021}, {"d": "2082-09-03", "p": "Loan Clearance by Sandesh Giri", "dr": null, "cr": 10100.0, "b": 13243.210000000021}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 28000.0, "b": 41243.21000000002}, {"d": "2082-09-16", "p": "Partial Loan clearance by Suvas Giri", "dr": null, "cr": 50000.0, "b": 91243.21000000002}, {"d": "2082-09-30", "p": "Bank Interest Received (Upto 2082-09-30)", "dr": null, "cr": 625.05, "b": 91868.26000000002}, {"d": "2082-10-03", "p": "Loan Clearance by Arjun Dhungana", "dr": null, "cr": 67000.0, "b": 158868.26}, {"d": "2082-10-03", "p": "Loan Clearance by Dibesh Kumhar", "dr": null, "cr": 50000.0, "b": 208868.26}, {"d": "2082-10-03", "p": "Loan Clearance by Prakash Basnet", "dr": null, "cr": 50000.0, "b": 258868.26}, {"d": "2082-10-04", "p": "Loan to Ashish Bhujel", "dr": 100000.0, "cr": null, "b": 158868.26}, {"d": "2082-10-04", "p": "Loan Clearance by Roshan Pariyar", "dr": null, "cr": 100000.0, "b": 258868.26}, {"d": "2082-10-04", "p": "Partial Loan Clearance by Bishal Rai", "dr": null, "cr": 50000.0, "b": 308868.26}, {"d": "2082-10-06", "p": "Interest Collection (Upto 2082-09-30)", "dr": null, "cr": 18283.0, "b": 327151.26}, {"d": "2082-10-06", "p": "Saving (Magh)", "dr": null, "cr": 28000.0, "b": 355151.26}, {"d": "2082-10-06", "p": "Adjustment Saving", "dr": null, "cr": 19342.0, "b": 374493.26}, {"d": "2082-10-08", "p": "Loan to Niraj Nepal", "dr": 70000.0, "cr": null, "b": 304493.26}, {"d": "2082-10-20", "p": "Loan to Dibesh Kumhar", "dr": 100000.0, "cr": null, "b": 204493.26}, {"d": "2082-10-26", "p": "Loan to Prakash Basnet", "dr": 100000.0, "cr": null, "b": 104493.26000000001}, {"d": "2082-10-26", "p": "Loan Clearance by Shiv Kumar Tajpuriya", "dr": null, "cr": 101091.0, "b": 205584.26}, {"d": "2082-11-11", "p": "Saving (Falgun)", "dr": null, "cr": 28000.0, "b": 233584.26}, {"d": "2082-11-12", "p": "Loan to Bishal Rai", "dr": 10000.0, "cr": null, "b": 223584.26}], "savings": {"Bishal Rai": {"member_no": "Member No.: 1", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Shiv Kumar Tajpuriya": {"member_no": "Member No.: 2", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Niraj Nepal": {"member_no": "Member No.: 3", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Krishna Neupane": {"member_no": "Member No.: 4", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Roshan Pariyar": {"member_no": "Member No.: 5", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Ashish Bhujel": {"member_no": "Member No.: 6", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Navin Niroula": {"member_no": "Member No.: 7", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Prakash Basnet": {"member_no": "Member No.: 8", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Pasang Tamang": {"member_no": "Member No.:", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 21980.0}, {"d": "2081-10-09", "p": "Refund (Withdrawal of saving)", "dr": 21980.0, "cr": null, "b": 0.0}]}, "Dibesh Kumhar": {"member_no": "Member No.: 9", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Sandesh Giri": {"member_no": "Member No.: 10", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2080-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 1000.0, "b": 6000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 1000.0, "b": 7000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 1000.0, "b": 8000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 140.0, "b": 8140.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 1000.0, "b": 9140.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 1000.0, "b": 10140.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 1000.0, "b": 11140.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 1000.0, "b": 12140.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 1000.0, "b": 13140.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 1000.0, "b": 14140.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 534.0, "b": 14674.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 1000.0, "b": 15674.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 16674.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 2000.0, "b": 18674.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 1000.0, "b": 19674.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 1000.0, "b": 20674.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 1264.0, "b": 21938.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 1000.0, "b": 22938.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 24938.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 26938.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 685.0, "b": 27623.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 29623.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 31623.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 33623.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1035.0, "b": 34658.0}, {"d": "2082-10-05", "p": "Adjustment Saving", "dr": null, "cr": 19342.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Rupak Katwal": {"member_no": "Member No.: 11", "rows": [{"d": "2080-11-30", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2081-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-124 days", "dr": null, "cr": 180.0, "b": 11180.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13180.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15180.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17180.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19180.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21180.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23180.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 800.0, "b": 23980.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25980.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27980.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32980.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34980.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36980.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2170.0, "b": 39150.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41150.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43150.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45150.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1182.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Arjun Dhungana": {"member_no": "Member No.: 12", "rows": [{"d": "2080-12-21", "p": "Initial Saving", "dr": null, "cr": 3000.0, "b": 3000.0}, {"d": "2080-12-21", "p": "Saving (Chaitra)", "dr": null, "cr": 1000.0, "b": 4000.0}, {"d": "2081-01-05", "p": "Saving (Baishakh)", "dr": null, "cr": 1000.0, "b": 5000.0}, {"d": "2081-02-05", "p": "Saving (Jeshtha)", "dr": null, "cr": 2000.0, "b": 7000.0}, {"d": "2081-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 9000.0}, {"d": "2081-04-04", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 11000.0}, {"d": "2081-04-04", "p": "Saving Bonus (upto 2081-03-31)-103 days", "dr": null, "cr": 150.0, "b": 11150.0}, {"d": "2081-05-03", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 13150.0}, {"d": "2081-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 15150.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17150.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19150.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21150.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23150.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-182 days", "dr": null, "cr": 798.0, "b": 23948.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25948.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27948.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32948.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34948.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36948.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2168.0, "b": 39116.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 41116.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 43116.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 45116.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1180.0, "b": 46296.0}, {"d": "2082-06-31", "p": "Adjustment Saving", "dr": null, "cr": 36.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Perish Rayamajhi": {"member_no": "Member No.: 13", "rows": [{"d": "2081-07-05", "p": "Initial Saving", "dr": null, "cr": 15000.0, "b": 15000.0}, {"d": "2081-07-05", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 17000.0}, {"d": "2081-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 19000.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21000.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23000.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-84 days", "dr": null, "cr": 255.0, "b": 23255.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25255.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27255.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32255.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34255.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36255.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2117.0, "b": 38372.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 40372.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 42372.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 44372.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1160.0, "b": 45532.0}, {"d": "2082-06-31", "p": "Adjustment Saving", "dr": null, "cr": 800.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Suvas Giri": {"member_no": "Member No.: 14", "rows": [{"d": "2081-09-05", "p": "Initial Saving", "dr": null, "cr": 19000.0, "b": 19000.0}, {"d": "2081-09-05", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 21000.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 23000.0}, {"d": "2081-10-05", "p": "Saving Bonus (upto 2081-09-29)-24 days", "dr": null, "cr": 73.0, "b": 23073.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25073.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27073.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32073.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34073.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36073.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-184 days", "dr": null, "cr": 2104.0, "b": 38177.0}, {"d": "2082-04-05", "p": "Saving (Shrawan)", "dr": null, "cr": 2000.0, "b": 40177.0}, {"d": "2082-05-05", "p": "Saving (Bhadra)", "dr": null, "cr": 2000.0, "b": 42177.0}, {"d": "2082-06-05", "p": "Saving (Asoj)", "dr": null, "cr": 2000.0, "b": 44177.0}, {"d": "2082-06-31", "p": "Saving Bonus (upto 2082-06-31)-93 days", "dr": null, "cr": 1155.0, "b": 45332.0}, {"d": "2082-06-31", "p": "Adjustment Saving", "dr": null, "cr": 1000.0, "b": 46332.0}, {"d": "2082-06-31", "p": "Saving (Kartik)", "dr": null, "cr": 2000.0, "b": 48332.0}, {"d": "2082-08-05", "p": "Saving (Mangshir)", "dr": null, "cr": 2000.0, "b": 50332.0}, {"d": "2082-09-03", "p": "Saving (Poush)", "dr": null, "cr": 2000.0, "b": 52332.0}, {"d": "2082-09-30", "p": "Saving Bonus (upto 2082-09-30)-89 days", "dr": null, "cr": 1668.0, "b": 54000.0}, {"d": "2082-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 56000.0}, {"d": "2082-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 58000.0}]}, "Bishal Khadka": {"member_no": "Member No.: 15", "rows": [{"d": "2081-10-05", "p": "Initial Saving", "dr": null, "cr": 10000.0, "b": 10000.0}, {"d": "2081-10-05", "p": "Saving (Magh)", "dr": null, "cr": 2000.0, "b": 12000.0}, {"d": "2081-11-05", "p": "Second Call Saving", "dr": null, "cr": 11000.0, "b": 23000.0}, {"d": "2081-11-05", "p": "Saving (Falgun)", "dr": null, "cr": 2000.0, "b": 25000.0}, {"d": "2081-12-05", "p": "Saving (Chaitra)", "dr": null, "cr": 2000.0, "b": 27000.0}, {"d": "2082-01-03", "p": "Saving (Baishakh)", "dr": null, "cr": 5000.0, "b": 32000.0}, {"d": "2082-02-05", "p": "Saving (Jestha)", "dr": null, "cr": 2000.0, "b": 34000.0}, {"d": "2082-03-05", "p": "Saving (Ashadh)", "dr": null, "cr": 2000.0, "b": 36000.0}, {"d": "2082-04-01", "p": "Saving Bonus (upto 2082-03-32)-179 days", "dr": null, "cr": 1348.0, "b": 37348.0}, {"d": "2082-04-04", "p": "Refund (Withdrawal of saving)", "dr": 37348.0, "cr": null, "b": 0.0}]}}, "loans": {"Roshan Pariyar": {"member_no": "Member No.: 5", "rows": [{"d": "2080-12-13", "p": "Loan given (Maturity: 2081-02-30)", "dr": 38000.0, "cr": 0.0, "b": 38000.0}, {"d": "2080-12-30", "p": "Interest (17 days - Chaitra)", "dr": 212.0, "cr": null, "b": 38212.0}, {"d": "2081-01-31", "p": "Interest (31 days - Baishakh)", "dr": 387.0, "cr": null, "b": 38599.0}, {"d": "2081-02-32", "p": "Interest (32 days - Jestha)", "dr": 400.0, "cr": null, "b": 38999.0}, {"d": "2081-03-04", "p": "Partial loan clearance (Principal)", "dr": null, "cr": 13000.0, "b": 25999.0}, {"d": "2081-03-31", "p": "Interest (4+27 days - Ashadh)", "dr": 272.0, "cr": null, "b": 26271.0}, {"d": "2081-04-03", "p": "Interest received (upto 2081-03-31)", "dr": null, "cr": 1271.0, "b": 25000.0}, {"d": "2081-04-32", "p": "Interest (32 days - Shrawan)", "dr": 263.0, "cr": null, "b": 25263.0}, {"d": "2081-04-32", "p": "Loan Clearance", "dr": null, "cr": 25263.0, "b": 0.0}, {"d": "2081-05-04", "p": "Loan given (Maturity: 2081-08-30)", "dr": 50000.0, "cr": null, "b": 50000.0}, {"d": "2081-05-31", "p": "Interest (27 days - Bhadra)", "dr": 444.0, "cr": null, "b": 50444.0}, {"d": "2081-06-30", "p": "Interest (30 dasy - Ashwin)", "dr": 493.0, "cr": null, "b": 50937.0}, {"d": "2081-07-04", "p": "Interest received (upto 2081-06-30)", "dr": null, "cr": 937.0, "b": 50000.0}, {"d": "2081-07-30", "p": "Interest (30 days - Kartik)", "dr": 493.0, "cr": null, "b": 50493.0}, {"d": "2081-08-30", "p": "Interest (30 days - Mangshir)", "dr": 493.0, "cr": null, "b": 50986.0}, {"d": "2081-09-21", "p": "Interest (21 days - Poush)", "dr": 345.0, "cr": null, "b": 51331.0}, {"d": "2081-09-21", "p": "Loan clearance", "dr": null, "cr": 51331.0, "b": 0.0}, {"d": "2081-10-25", "p": "Loan given (Maturity: 2082-04-25)", "dr": 66000.0, "cr": null, "b": 66000.0}, {"d": "2081-10-30", "p": "Interest (5 days - Magh)", "dr": 108.0, "cr": null, "b": 66108.0}, {"d": "2081-11-29", "p": "Interest (29 days - Falgun)", "dr": 629.0, "cr": null, "b": 66737.0}, {"d": "2081-12-31", "p": "Interest (31 days - Chaitra)", "dr": 673.0, "cr": null, "b": 67410.0}, {"d": "2082-01-03", "p": "Interest received (upto 2081-12-31)", "dr": null, "cr": 1410.0, "b": 66000.0}, {"d": "2082-01-31", "p": "Interest (31 days - Baishakh)", "dr": 673.0, "cr": null, "b": 66673.0}, {"d": "2082-02-31", "p": "Interest (31 days - Jeshtha)", "dr": 673.0, "cr": null, "b": 67346.0}, {"d": "2082-03-32", "p": "Interest (32 days - Ashadh)", "dr": 694.0, "cr": null, "b": 68040.0}, {"d": "2082-04-01", "p": "Loan Clearance", "dr": null, "cr": 68040.0, "b": 0.0}, {"d": "2082-06-27", "p": "Loan given (Maturity: 2082-12-26)", "dr": 100000.0, "cr": null, "b": 100000.0}, {"d": "2082-06-31", "p": "Interest (4 days - Asoj)", "dr": 131.0, "cr": null, "b": 100131.0}, {"d": "2082-07-22", "p": "Interest (22 days - Kartik)", "dr": 723.0, "cr": null, "b": 100854.0}, {"d": "2082-07-22", "p": "Loan Clearance", "dr": null, "cr": 100854.0, "b": 0.0}, {"d": "2082-08-28", "p": "Loan given (Maturity: 2082-12-28)", "dr": 100000.0, "cr": null, "b": 100000.0}, {"d": "2082-08-29", "p": "Interest (1 day - Mangshir)", "dr": 33.0, "cr": null, "b": 100033.0}, {"d": "2082-09-30", "p": "Interest (30 days - Poush)", "dr": 986.0, "cr": null, "b": 101019.0}, {"d": "2082-10-04", "p": "Loan Clearance", "dr": null, "cr": 101019.0, "b": 0.0}]}, "Krishna Neupane": {"member_no": "Member No.: 4", "rows": [{"d": "2081-02-07", "p": "Loan given (Maturity: 2081-03-05)", "dr": 40000.0, "cr": 0.0, "b": 40000.0}, {"d": "2081-02-32", "p": "Interest (27 days - Jestha)", "dr": 355.0, "cr": null, "b": 40355.0}, {"d": "2081-03-04", "p": "Interest (3 days - Ashadh)", "dr": 40.0, "cr": null, "b": 40395.0}, {"d": "2081-03-04", "p": "Loan clearance", "dr": null, "cr": 40395.0, "b": 0.0}, {"d": "2081-09-08", "p": "Loan given (Maturity: 2082-02-07)", "dr": 59000.0, "cr": null, "b": 59000.0}, {"d": "2081-09-29", "p": "Interest (21 days - Poush)", "dr": 407.0, "cr": null, "b": 59407.0}, {"d": "2081-10-05", "p": "Interest received (upto 2081-09-29)", "dr": null, "cr": 407.0, "b": 59000.0}, {"d": "2081-10-10", "p": "Loan given (Maturity: 2082-04-09)", "dr": 21000.0, "cr": null, "b": 80000.0}, {"d": "2081-10-30", "p": "Interest (582+138 - 20 days)-Magh", "dr": 720.0, "cr": null, "b": 80720.0}, {"d": "2081-11-05", "p": "Interest received with advance (Magh)", "dr": null, "cr": 800.0, "b": 79920.0}, {"d": "2081-11-29", "p": "Interest (29 days - Falgun)", "dr": 763.0, "cr": null, "b": 80683.0}, {"d": "2081-12-05", "p": "Interest received (Falgun)", "dr": null, "cr": 683.0, "b": 80000.0}, {"d": "2081-12-31", "p": "Interest (31 days - Chaitra)", "dr": 815.0, "cr": null, "b": 80815.0}, {"d": "2082-01-03", "p": "Interest received (upto 2081-12-31)", "dr": null, "cr": 815.0, "b": 80000.0}, {"d": "2082-01-31", "p": "Interest (31 days - Baishakh)", "dr": 815.0, "cr": null, "b": 80815.0}, {"d": "2082-02-31", "p": "Interest (31 days - Jeshtha)", "dr": 815.0, "cr": null, "b": 81630.0}, {"d": "2082-03-32", "p": "Interest (32 days - Ashadh)", "dr": 841.0, "cr": null, "b": 82471.0}, {"d": "2082-04-01", "p": "Interest received (upto 2082-03-32)", "dr": null, "cr": 2471.0, "b": 80000.0}, {"d": "2082-04-22", "p": "Interest (21 days for 59000)", "dr": 407.0, "cr": null, "b": 80407.0}, {"d": "2082-04-25", "p": "Partial Loan Clearance", "dr": null, "cr": 59407.0, "b": 21000.0}, {"d": "2082-04-31", "p": "Interest (31 days for 21000)", "dr": 214.0, "cr": null, "b": 21214.0}, {"d": "2082-05-21", "p": "Interest (20 days for 21000)", "dr": 138.0, "cr": null, "b": 21352.0}, {"d": "2082-05-21", "p": "Loan Clearance", "dr": null, "cr": 21352.0, "b": 0.0}, {"d": "2082-06-09", "p": "Loan given (Maturity: 2082-12-08)", "dr": 23000.0, "cr": null, "b": 23000.0}, {"d": "2082-06-12", "p": "Loan given (Maturity: 2082-12-11)", "dr": 77000.0, "cr": null, "b": 100000.0}, {"d": "2082-06-31", "p": "Interest - Asoj (166+481)", "dr": 647.0, "cr": null, "b": 100647.0}, {"d": "2082-06-31", "p": "Interest received (upto 2082-06-31)", "dr": null, "cr": 647.0, "b": 100000.0}, {"d": "2082-07-30", "p": "Interest (30 days - Kartik)", "dr": 986.0, "cr": null, "b": 100986.0}, {"d": "2082-08-29", "p": "Interest (29 days - Mangshir)", "dr": 953.0, "cr": null, "b": 101939.0}, {"d": "2082-09-30", "p": "Interest (30 days - Poush)", "dr": 986.0, "cr": null, "b": 102925.0}, {"d": "2082-10-05", "p": "Interest received (upto 2082-09-30)", "dr": null, "cr": 2925.0, "b": 100000.0}, {"d": "2082-10-30", "p": "Interest (30 days - Magh)", "dr": 986.0, "cr": null, "b": 100986.0}]}, "Niraj Nepal": {"member_no": "Member No.: 3", "rows": [{"d": "2081-03-06", "p": "Loan given (Maturity: 2081-06-06)", "dr": 80000.0, "cr": 0.0, "b": 80000.0}, {"d": "2081-03-31", "p": "Interest (25 days - Ashadh)", "dr": 658.0, "cr": null, "b": 80658.0}, {"d": "2081-04-03", "p": "Interest received (upto 2081-03-31)", "dr": null, "cr": 658.0, "b": 80000.0}, {"d": "2081-04-32", "p": "Interest (32 days - Shrawan)", "dr": 842.0, "cr": null, "b": 80842.0}, {"d": "2081-05-31", "p": "Interest (31 days - Bhadra)", "dr": 815.0, "cr": null, "b": 81657.0}, {"d": "2081-06-30", "p": "Interest (30 days - Ashwin)", "dr": 789.0, "cr": null, "b": 82446.0}, {"d": "2081-07-02", "p": "Interest received (upto 2081-06-30)", "dr": null, "cr": 2446.0, "b": 80000.0}, {"d": "2081-07-30", "p": "Interest (30 days - Kartik)", "dr": 789.0, "cr": null, "b": 80789.0}, {"d": "2081-08-30", "p": "Interest (30 days - Mangshir)", "dr": 789.0, "cr": null, "b": 81578.0}, {"d": "2081-09-29", "p": "Interest (29 days - Poush)", "dr": 763.0, "cr": null, "b": 82341.0}, {"d": "2081-10-05", "p": "Interest received (upto 2081-09-29)", "dr": null, "cr": 2341.0, "b": 80000.0}, {"d": "2081-10-30", "p": "Interest (30 days - Magh) @ 24% p.a.", "dr": 1578.0, "cr": null, "b": 81578.0}, {"d": "2081-11-29", "p": "Interest (29 days - Falgun) @ 24% p.a.", "dr": 1525.0, "cr": null, "b": 83103.0}, {"d": "2081-12-01", "p": "Partial Loan clearance (Principal)", "dr": null, "cr": 10000.0, "b": 73103.0}, {"d": "2081-12-31", "p": "Interest (31 days - Chaitra) @ 24% p.a.", "dr": 1427.0, "cr": null, "b": 74530.0}, {"d": "2082-01-03", "p": "Interest received (upto 2081-12-31)", "dr": null, "cr": 4530.0, "b": 70000.0}, {"d": "2082-01-31", "p": "Interest (31 days - Baishakh) @ 24% p.a.", "dr": 1427.0, "cr": null, "b": 71427.0}, {"d": "2082-02-31", "p": "Interest (31 days - Jeshtha) @ 24% p.a.", "dr": 1427.0, "cr": null, "b": 72854.0}, {"d": "2082-03-32", "p": "Interest (32 days - Ashadh) @ 24% p.a.", "dr": 1472.0, "cr": null, "b": 74326.0}, {"d": "2082-04-01", "p": "Interest received (upto 2082-03-32)", "dr": null, "cr": 4326.0, "b": 70000.0}, {"d": "2082-04-01", "p": "Partial Loan clearance (Principal)", "dr": null, "cr": 40000.0, "b": 30000.0}, {"d": "2082-04-31", "p": "Interest (31 days - Shrawan) @ 24% p.a.", "dr": 611.0, "cr": null, "b": 30611.0}, {"d": "2082-05-31", "p": "Interest (31 days - Bhadra) @ 24% p.a.", "dr": 611.0, "cr": null, "b": 31222.0}, {"d": "2082-06-31", "p": "Interest (31 days - Asoj) @ 24% p.a.", "dr": 611.0, "cr": null, "b": 31833.0}, {"d": "2082-06-31", "p": "Interest received (upto 2082-06-31)", "dr": null, "cr": 1833.0, "b": 30000.0}, {"d": "2082-07-30", "p": "Interest (30 days - Kartik) @ 24% p.a.", "dr": 591.0, "cr": null, "b": 30591.0}, {"d": "2082-08-29", "p": "Interest (29 days - Manshir) @ 24% p.a.", "dr": 572.0, "cr": null, "b": 31163.0}, {"d": "2082-09-30", "p": "Interest (30 days - Poush) @ 24% p.a.", "dr": 591.0, "cr": null, "b": 31754.0}, {"d": "2082-10-05", "p": "Interest received (upto 2082-09-30)", "dr": null, "cr": 1754.0, "b": 30000.0}, {"d": "2082-10-08", "p": "Loan given (Maturity: 2083-04-07)", "dr": 70000.0, "cr": null, "b": 100000.0}, {"d": "2082-10-30", "p": "Interest (30 days - Magh) @ 24% p.a. of 30000/-", "dr": 591.0, "cr": null, "b": 100591.0}, {"d": "2082-10-30", "p": "Interest (22 days - Magh)@ 12% p.a. of 70000/-", "dr": 506.0, "cr": null, "b": 101097.0}]}, "Ashish Bhujel": {"member_no": "Member No.: 6", "rows": [{"d": "2081-04-14", "p": "Loan given (Maturity: 2081-05-31)", "dr": 27500.0, "cr": 0.0, "b": 27500.0}, {"d": "2081-04-32", "p": "Interest (18 days - Shrawan)", "dr": 163.0, "cr": null, "b": 27663.0}, {"d": "2081-05-31", "p": "Interest (31 days - Bhadra)", "dr": 280.0, "cr": null, "b": 27943.0}, {"d": "2081-06-30", "p": "Interest (30 days - Ashwin)", "dr": 271.0, "cr": null, "b": 28214.0}, {"d": "2081-07-03", "p": "Interest received (upto 2081-06-30)", "dr": null, "cr": 714.0, "b": 27500.0}, {"d": "2081-07-30", "p": "Interest (30 days - Kartik)", "dr": 271.0, "cr": null, "b": 27771.0}, {"d": "2081-08-30", "p": "Interest (30 days - Mangshir)", "dr": 271.0, "cr": null, "b": 28042.0}, {"d": "2081-09-05", "p": "Partial loan clearance (Principal)", "dr": null, "cr": 11000.0, "b": 17042.0}, {"d": "2081-09-29", "p": "Interest (Poush)", "dr": 108.0, "cr": null, "b": 17150.0}, {"d": "2081-10-05", "p": "Interest received (upto 2081-09-29)", "dr": null, "cr": 650.0, "b": 16500.0}, {"d": "2081-10-05", "p": "Partial loan clearance (Principal)", "dr": null, "cr": 8000.0, "b": 8500.0}, {"d": "2081-10-30", "p": "Interest (13 days - Magh)", "dr": 36.0, "cr": null, "b": 8536.0}, {"d": "2081-10-30", "p": "Interest (17 days - Magh) @ 24% p.a.", "dr": 95.0, "cr": null, "b": 8631.0}, {"d": "2081-11-29", "p": "Interest (29 days - Falgun) @ 24 % p.a.", "dr": 162.0, "cr": null, "b": 8793.0}, {"d": "2081-12-14", "p": "Interest (14 days - Chaitra) @ 24% p.a.", "dr": 78.0, "cr": null, "b": 8871.0}, {"d": "2081-12-14", "p": "Loan clearance", "dr": null, "cr": 8871.0, "b": 0.0}, {"d": "2082-01-01", "p": "Loan given (Maturity: 2082-06-31)", "dr": 80000.0, "cr": null, "b": 80000.0}, {"d": "2082-01-31", "p": "Interest (31 days - Baishakh)", "dr": 815.0, "cr": null, "b": 80815.0}, {"d": "2082-02-31", "p": "Interest (31 days - Jeshtha)", "dr": 815.0, "cr": null, "b": 81630.0}, {"d": "2082-03-32", "p": "Interest (32 days - Ashadh)", "dr": 841.0, "cr": null, "b": 82471.0}, {"d": "2082-04-01", "p": "Interest received (upto 2082-03-32)", "dr": null, "cr": 2471.0, "b": 80000.0}, {"d": "2082-04-31", "p": "Interest (31 days - Shrawan)", "dr": 815.0, "cr": null, "b": 80815.0}, {"d": "2082-05-31", "p": "Interest (31 days - Bhadra)", "dr": 815.0, "cr": null, "b": 81630.0}, {"d": "2082-06-05", "p": "Interest received (upto 2082-06-31)", "dr": null, "cr": 2445.0, "b": 79185.0}, {"d": "2082-06-31", "p": "Interest (31 days - Asoj)", "dr": 815.0, "cr": null, "b": 80000.0}, {"d": "2082-07-30", "p": "Interest (30 days - Kartik) @ 24% p.a.", "dr": 1578.0, "cr": null, "b": 81578.0}, {"d": "2082-08-27", "p": "Interest (27 days - Mangshir) @ 27% p.a.", "dr": 1422.0, "cr": null, "b": 83000.0}, {"d": "2082-08-28", "p": "Loan clearance", "dr": null, "cr": 83000.0, "b": 0.0}, {"d": "2082-10-04", "p": "Loan given (Maturity: 2083-04-03)", "dr": 100000.0, "cr": null, "b": 100000.0}, {"d": "2082-10-30", "p": "Interest (26 days - Magh)", "dr": 855.0, "cr": null, "b": 100855.0}]}, "Bishal Rai": {"member_no": "Member No.: 1", "rows": [{"d": "2081-06-06", "p": "Loan given (Maturity: 2081-09-30)", "dr": 25000.0, "cr": 0.0, "b": 25000.0}, {"d": "2081-06-30", "p": "Interest (24 days - Ashwin)", "dr": 197.0, "cr": null, "b": 25197.0}, {"d": "2081-07-05", "p": "Interest received (upto 2081-06-30)", "dr": null, "cr": 197.0, "b": 25000.0}, {"d": "2081-07-06", "p": "Loan given (Maturity: 2081-11-05)", "dr": 35000.0, "cr": null, "b": 60000.0}, {"d": "2081-07-30", "p": "Interest (246 + 265 - 23 days)", "dr": 511.0, "cr": null, "b": 60511.0}, {"d": "2081-08-30", "p": "Interest (30 days - Mangshir)", "dr": 592.0, "cr": null, "b": 61103.0}, {"d": "2081-09-29", "p": "Interest (29 days - Poush)", "dr": 572.0, "cr": null, "b": 61675.0}, {"d": "2081-10-05", "p": "Interest received (upto 2081-09-29)", "dr": null, "cr": 1675.0, "b": 60000.0}, {"d": "2081-10-30", "p": "Interest (30 days - Magh)", "dr": 592.0, "cr": null, "b": 60592.0}, {"d": "2081-11-29", "p": "Interest (29 days - Falgun)", "dr": 572.0, "cr": null, "b": 61164.0}, {"d": "2081-12-01", "p": "Partial Loan Clearance (Principal)", "dr": null, "cr": 25000.0, "b": 36164.0}, {"d": "2081-12-22", "p": "Interest (22 days - Chaitra)", "dr": 253.0, "cr": null, "b": 36417.0}, {"d": "2081-12-22", "p": "Loan Clearance", "dr": null, "cr": 36417.0, "b": 0.0}, {"d": "2082-08-17", "p": "Loan given (Maturity: 2083-02-16)", "dr": 50000.0, "cr": null, "b": 50000.0}, {"d": "2082-08-21", "p": "Loan given (Maturity: 2082-12-30)", "dr": 50000.0, "cr": null, "b": 100000.0}, {"d": "2082-08-29", "p": "Interest (197+131)", "dr": 328.0, "cr": null, "b": 100328.0}, {"d": "2082-09-30", "p": "Interest (30 days - Poush)", "dr": 986.0, "cr": null, "b": 101314.0}, {"d": "2082-10-04", "p": "Partial Loan Clearance (Principal)", "dr": null, "cr": 50000.0, "b": 51314.0}, {"d": "2082-10-05", "p": "Interest received (upto 2082-09-30)", "dr": null, "cr": 1314.0, "b": 50000.0}, {"d": "2082-10-30", "p": "Interest (30 days - Magh)", "dr": 493.0, "cr": null, "b": 50493.0}, {"d": "2082-11-12", "p": "Loan given (Maturity: 2082-12-30)", "dr": 10000.0, "cr": null, "b": 60493.0}]}, "Prakash Basnet": {"member_no": "Member No.: 8", "rows": [{"d": "2081-08-07", "p": "Loan given (Maturity: 2081-12-06)", "dr": 38500.0, "cr": 0.0, "b": 38500.0}, {"d": "2081-08-30", "p": "Interest (23 days - Mangshir)", "dr": 291.0, "cr": null, "b": 38791.0}, {"d": "2081-09-29", "p": "Interest (29 days - Poush)", "dr": 367.0, "cr": null, "b": 39158.0}, {"d": "2081-10-05", "p": "Interest received (upto 2081-09-29)", "dr": null, "cr": 658.0, "b": 38500.0}, {"d": "2081-10-09", "p": "Partial Loan Clearance", "dr": null, "cr": 4500.0, "b": 34000.0}, {"d": "2081-10-30", "p": "Interest (114+235) - Magh", "dr": 349.0, "cr": null, "b": 34349.0}, {"d": "2081-11-05", "p": "Interest received (Magh)", "dr": null, "cr": 349.0, "b": 34000.0}, {"d": "2081-11-29", "p": "Interest (29 days - Falgun)", "dr": 324.0, "cr": null, "b": 34324.0}, {"d": "2081-12-22", "p": "Interest (22 days - Chaitra)", "dr": 246.0, "cr": null, "b": 34570.0}, {"d": "2081-12-22", "p": "Loan Clearance", "dr": null, "cr": 34570.0, "b": 0.0}, {"d": "2082-04-26", "p": "Loan given (Maturity: 2082-06-30)", "dr": 50000.0, "cr": null, "b": 50000.0}, {"d": "2082-04-31", "p": "Interest (5 days - Shrawan)", "dr": 82.0, "cr": null, "b": 50082.0}, {"d": "2082-05-31", "p": "Interest (31 days - Bhadra)", "dr": 509.0, "cr": null, "b": 50591.0}, {"d": "2082-06-10", "p": "Interest (10 days - Asoj)", "dr": 164.0, "cr": null, "b": 50755.0}, {"d": "2082-06-10", "p": "Loan Clearance", "dr": null, "cr": 50755.0, "b": 0.0}, {"d": "2082-08-09", "p": "Loan given (Maturity: 2082-12-30)", "dr": 50000.0, "cr": null, "b": 50000.0}, {"d": "2082-08-29", "p": "Interest (20 days - Mangshir)", "dr": 328.0, "cr": null, "b": 50328.0}, {"d": "2082-09-30", "p": "Interest (30 days - Poush)", "dr": 493.0, "cr": null, "b": 50821.0}, {"d": "2082-10-03", "p": "Loan clearance", "dr": null, "cr": 50821.0, "b": 0.0}, {"d": "2082-10-26", "p": "Loan given (Maturity: 2082-12-30)", "dr": 100000.0, "cr": null, "b": 100000.0}, {"d": "2082-10-30", "p": "Interest (4 days - Magh)", "dr": 131.0, "cr": null, "b": 100131.0}]}, "Rupak Katwal": {"member_no": "Member No.: 11", "rows": [{"d": "2081-09-22", "p": "Loan given (Maturity: 2081-11-29)", "dr": 50000.0, "cr": 0.0, "b": 50000.0}, {"d": "2081-09-29", "p": "Interest (7 days - Poush)", "dr": 115.0, "cr": null, "b": 50115.0}, {"d": "2081-10-05", "p": "Interest received (upto 2081-09-29)", "dr": null, "cr": 115.0, "b": 50000.0}, {"d": "2081-10-25", "p": "Interest (24 days - Magh)", "dr": 395.0, "cr": null, "b": 50395.0}, {"d": "2081-10-25", "p": "Loan Clearance", "dr": null, "cr": 50395.0, "b": 0.0}]}, "Bishal Khadka": {"member_no": "Member No.: 15", "rows": [{"d": "2081-11-11", "p": "Loan given (Maturity: 2082-01-11)", "dr": 12000.0, "cr": 0.0, "b": 12000.0}, {"d": "2081-11-29", "p": "Interest (18 days - Falgun)", "dr": 71.0, "cr": null, "b": 12071.0}, {"d": "2081-12-31", "p": "Interest (31 days - Chaitra)", "dr": 122.0, "cr": null, "b": 12193.0}, {"d": "2082-01-03", "p": "Interest received (upto 2081-12-31)", "dr": null, "cr": 193.0, "b": 12000.0}, {"d": "2082-01-05", "p": "Loan given (Maturity: 2082-02-30)", "dr": 10000.0, "cr": null, "b": 22000.0}, {"d": "2082-01-31", "p": "Interest-Baishakh (122+85)", "dr": 207.0, "cr": null, "b": 22207.0}, {"d": "2082-02-31", "p": "Interest (31 days - Jeshtha)", "dr": 224.0, "cr": null, "b": 22431.0}, {"d": "2082-03-32", "p": "Interest (32 days - Ashadh)", "dr": 231.0, "cr": null, "b": 22662.0}, {"d": "2082-04-04", "p": "Loan Clearance", "dr": null, "cr": 22662.0, "b": 0.0}]}, "Sandesh Giri": {"member_no": "Member No.: 10", "rows": [{"d": "2081-12-02", "p": "Loan given (Maturity: 2082-01-02)", "dr": 3000.0, "cr": 0.0, "b": 3000.0}, {"d": "2081-12-31", "p": "Interest (29 days - Chaitra)", "dr": 28.0, "cr": null, "b": 3028.0}, {"d": "2082-01-01", "p": "Loan Clearance", "dr": null, "cr": 3028.0, "b": 0.0}, {"d": "2082-01-26", "p": "Loan given (Maturity: 2082-03-31)", "dr": 5000.0, "cr": null, "b": 5000.0}, {"d": "2082-01-31", "p": "Interest (5 days - Baishakh)", "dr": 8.0, "cr": null, "b": 5008.0}, {"d": "2082-02-31", "p": "Interest (31 days - Jeshtha)", "dr": 50.0, "cr": null, "b": 5058.0}, {"d": "2082-03-32", "p": "Interest (32 days - Ashadh)", "dr": 52.0, "cr": null, "b": 5110.0}, {"d": "2082-04-01", "p": "Interest received (upto 2082-03-32)", "dr": null, "cr": 110.0, "b": 5000.0}, {"d": "2082-04-12", "p": "Interest (12 days - Shrawan)", "dr": 18.0, "cr": null, "b": 5018.0}, {"d": "2082-04-12", "p": "Loan Clearance", "dr": null, "cr": 5018.0, "b": 0.0}, {"d": "2082-04-14", "p": "Loan given (Maturity: 2082-04-31)", "dr": 25000.0, "cr": null, "b": 25000.0}, {"d": "2082-04-24", "p": "Interest (9 days)", "dr": 74.0, "cr": null, "b": 25074.0}, {"d": "2082-04-24", "p": "Loan Clearance", "dr": null, "cr": 25074.0, "b": 0.0}, {"d": "2082-08-04", "p": "Loan given (Maturity: 2082-09-03)", "dr": 10000.0, "cr": null, "b": 10000.0}, {"d": "2082-08-29", "p": "Interest ( 26 days - Mangshir)", "dr": 90.0, "cr": null, "b": 10090.0}, {"d": "2082-09-03", "p": "Interest (3 days - Poush)", "dr": 10.0, "cr": null, "b": 10100.0}, {"d": "2082-09-03", "p": "Loan Clearance", "dr": null, "cr": 10100.0, "b": 0.0}]}, "Suvas Giri": {"member_no": "Member No.: 14", "rows": [{"d": "2081-12-21", "p": "Loan given (Maturity: 2082-06-20)", "dr": 80000.0, "cr": 0.0, "b": 80000.0}, {"d": "2081-12-31", "p": "Interest (10 days - Chaitra)", "dr": 263.0, "cr": null, "b": 80263.0}, {"d": "2082-01-03", "p": "Interest received (upto 2081-12-31)", "dr": null, "cr": 263.0, "b": 80000.0}, {"d": "2082-01-31", "p": "Interest (31 days - Baishakh)", "dr": 815.0, "cr": null, "b": 80815.0}, {"d": "2082-02-31", "p": "Interest (31 days - Jeshtha)", "dr": 815.0, "cr": null, "b": 81630.0}, {"d": "2082-03-32", "p": "Interest (32 days - Ashadh)", "dr": 841.0, "cr": null, "b": 82471.0}, {"d": "2082-04-01", "p": "Interest received (upto 2082-03-32)", "dr": null, "cr": 2471.0, "b": 80000.0}, {"d": "2082-04-31", "p": "Interest (31 days - Shrawan)", "dr": 815.0, "cr": null, "b": 80815.0}, {"d": "2082-05-31", "p": "Interest (31 days - Bhadra)", "dr": 815.0, "cr": null, "b": 81630.0}, {"d": "2082-06-31", "p": "Interest (31 days - Asoj)", "dr": 815.0, "cr": null, "b": 82445.0}, {"d": "2082-06-31", "p": "Interest received (upto 2082-06-31)", "dr": null, "cr": 2445.0, "b": 80000.0}, {"d": "2082-07-30", "p": "Interest (30 days - Kartik) @ 24% p.a.", "dr": 1578.0, "cr": null, "b": 81578.0}, {"d": "2082-08-29", "p": "Interest (29 days - Mangshir) @ 24% p.a.", "dr": 1525.0, "cr": null, "b": 83103.0}, {"d": "2082-09-09", "p": "Partial Loan Clearance (Principal)", "dr": null, "cr": 50000.0, "b": 33103.0}, {"d": "2082-09-30", "p": "Interest @ 24% p.a. (473+414)", "dr": 887.0, "cr": null, "b": 33990.0}, {"d": "2082-10-05", "p": "Interest received (upto 2082-09-30)", "dr": null, "cr": 3990.0, "b": 30000.0}, {"d": "2082-10-30", "p": "Interest (30 days - Magh) @ 24% p.a.", "dr": 591.0, "cr": null, "b": 30591.0}]}, "Dibesh Kumhar": {"member_no": "Member No.: 9", "rows": [{"d": "2082-01-03", "p": "Loan given (Maturity: 2082-06-30)", "dr": 50000.0, "cr": 0.0, "b": 50000.0}, {"d": "2082-01-31", "p": "Interest (28 days - Baishakh)", "dr": 460.0, "cr": null, "b": 50460.0}, {"d": "2082-02-31", "p": "Interest (31 days - Jeshtha)", "dr": 509.0, "cr": null, "b": 50969.0}, {"d": "2082-03-12", "p": "Interest (11 days - Ashadh)", "dr": 180.0, "cr": null, "b": 51149.0}, {"d": "2082-03-12", "p": "Loan clearance", "dr": null, "cr": 51149.0, "b": 0.0}, {"d": "2082-05-08", "p": "Loan given (Maturity: 2082-09-30)", "dr": 50000.0, "cr": null, "b": 50000.0}, {"d": "2082-05-31", "p": "Interest (23 days - Bhadra)", "dr": 378.0, "cr": null, "b": 50378.0}, {"d": "2082-06-10", "p": "Interest (10 days - Asoj)", "dr": 164.0, "cr": null, "b": 50542.0}, {"d": "2082-06-10", "p": "Loan Clearance", "dr": null, "cr": 50542.0, "b": 0.0}, {"d": "2082-07-16", "p": "Loan given (Maturity: 2082-12-30)", "dr": 30000.0, "cr": null, "b": 30000.0}, {"d": "2082-07-30", "p": "Interest (14 days - Kartik)", "dr": 138.0, "cr": null, "b": 30138.0}, {"d": "2082-08-29", "p": "Interest (29 days - Mangshir)", "dr": 286.0, "cr": null, "b": 30424.0}, {"d": "2082-09-01", "p": "Loan given (Maturity: 2082-12-30)", "dr": 20000.0, "cr": null, "b": 50424.0}, {"d": "2082-09-30", "p": "Interest (30 days - Poush)", "dr": 493.0, "cr": null, "b": 50917.0}, {"d": "2082-10-03", "p": "Loan Clearance", "dr": null, "cr": 50917.0, "b": 0.0}, {"d": "2082-10-20", "p": "Loan given (Maturity: 2083-03-30)", "dr": 100000.0, "cr": null, "b": 100000.0}, {"d": "2082-10-30", "p": "Interest (10 days - Magh)", "dr": 329.0, "cr": null, "b": 100329.0}]}, "Arjun Dhungana": {"member_no": "Member No.: 12", "rows": [{"d": "2082-02-13", "p": "Loan given (Maturity: 2082-08-12)", "dr": 67000.0, "cr": 0.0, "b": 67000.0}, {"d": "2082-02-31", "p": "Interest (18 days - Jeshtha)", "dr": 396.0, "cr": null, "b": 67396.0}, {"d": "2082-03-32", "p": "Interest (32 days - Ashadh)", "dr": 704.0, "cr": null, "b": 68100.0}, {"d": "2082-04-01", "p": "Interest received (upto 2082-03-32)", "dr": null, "cr": 1100.0, "b": 67000.0}, {"d": "2082-04-31", "p": "Interest (31 days -Shrawan)", "dr": 682.0, "cr": null, "b": 67682.0}, {"d": "2082-05-31", "p": "Interest (31 days -Bhadra)", "dr": 682.0, "cr": null, "b": 68364.0}, {"d": "2082-06-31", "p": "Interest (31 days -Asoj)", "dr": 682.0, "cr": null, "b": 69046.0}, {"d": "2082-06-31", "p": "Interest received (upto 2082-06-31)", "dr": null, "cr": 2046.0, "b": 67000.0}, {"d": "2082-07-30", "p": "Interest (30 days - Kartik)", "dr": 660.0, "cr": null, "b": 67660.0}, {"d": "2082-08-29", "p": "Interest (29 days - Mangshir)", "dr": 638.0, "cr": null, "b": 68298.0}, {"d": "2082-09-30", "p": "Interest (30 days - Poush) @ 24% p.a.", "dr": 1320.0, "cr": null, "b": 69618.0}, {"d": "2082-10-03", "p": "Loan Clearance", "dr": null, "cr": 69618.0, "b": 0.0}]}, "Shiv Kumar Tajpuriya": {"member_no": "Member No.: 2", "rows": [{"d": "2082-04-02", "p": "Loan given (Maturity: 2082-05-01)", "dr": 30000.0, "cr": 0.0, "b": 30000.0}, {"d": "2082-04-27", "p": "Loan given (Maturity: 2082-10-25)", "dr": 70000.0, "cr": null, "b": 100000.0}, {"d": "2082-04-31", "p": "Interest ( 286+92) - Shrawan", "dr": 378.0, "cr": null, "b": 100378.0}, {"d": "2082-05-31", "p": "Interest (31 days - Bhadra)", "dr": 1019.0, "cr": null, "b": 101397.0}, {"d": "2082-06-31", "p": "Interest (31 days - Asoj)", "dr": 1019.0, "cr": null, "b": 102416.0}, {"d": "2082-06-31", "p": "Interest received (upto 2082-06-31)", "dr": null, "cr": 2416.0, "b": 100000.0}, {"d": "2082-07-30", "p": "Interest (30 days - Kartik)", "dr": 986.0, "cr": null, "b": 100986.0}, {"d": "2082-08-29", "p": "Interest (29 days - Mangshir)", "dr": 953.0, "cr": null, "b": 101939.0}, {"d": "2082-09-30", "p": "Interest (30 days - Poush)", "dr": 986.0, "cr": null, "b": 102925.0}, {"d": "2082-10-05", "p": "Interest received (upto 2082-09-30)", "dr": null, "cr": 2925.0, "b": 100000.0}, {"d": "2082-10-26", "p": "Interest (25 days - Magh) @ 24% p.a. of 30000/-", "dr": 493.0, "cr": null, "b": 100493.0}, {"d": "2082-10-26", "p": "Interest (26 days - Magh)@ 12% p.a. of 70000/-", "dr": 598.0, "cr": null, "b": 101091.0}, {"d": "2082-10-26", "p": "Loan Clearance", "dr": null, "cr": 101091.0, "b": 0.0}]}, "Navin Niroula": {"member_no": "Member No.: 2", "rows": [{"d": "2082-04-05", "p": "Loan given (Maturity: 2082-06-30)", "dr": 80000.0, "cr": 0.0, "b": 80000.0}, {"d": "2082-04-31", "p": "Interest (31 days - Shrawan)", "dr": 684.0, "cr": null, "b": 80684.0}, {"d": "2082-05-06", "p": "Partial loan clearance (Principal)", "dr": null, "cr": 20000.0, "b": 60684.0}, {"d": "2082-05-30", "p": "Partial loan clearance (Principal)", "dr": null, "cr": 25000.0, "b": 35684.0}, {"d": "2082-05-31", "p": "Interest (32+246+356) - Bhadra", "dr": 634.0, "cr": null, "b": 36318.0}, {"d": "2082-06-31", "p": "Interest (31 days - Asoj)", "dr": 357.0, "cr": null, "b": 36675.0}, {"d": "2082-06-31", "p": "Loan Clearance", "dr": null, "cr": 36675.0, "b": 0.0}]}}, "income_periods": [{"title_np": "आम्दानी विवरण (आर्थिक वर्ष २०८०/०८१ को )", "rows": [{"d": "2081-03-04", "p": "Interest received from Loan to Krishna Neupane", "amt": 395.0, "bal": 395.0}, {"d": "2081-04-01", "p": "Bank interest received (upto 2081-03-31)", "amt": 191.92, "bal": 586.92}, {"d": "2081-04-03", "p": "Interest received from Loan to Roshan Pariyar (upto 2081-03-31)", "amt": 1271.0, "bal": 1857.92}, {"d": "2081-04-03", "p": "Interest received from Loan to Niraj Nepal (upto 2081-03-31)", "amt": 658.0, "bal": 2515.92}]}, {"title_np": "आम्दानी विवरण ( आर्थिक वर्ष २०८१/०८२ को साउनदेखि पुस मसान्त सम्मको)", "rows": [{"d": "2081-04-32", "p": "Interest received from Loan to Roshan Pariyar", "amt": 263.0, "bal": 263.0}, {"d": "2081-07-01", "p": "Bank interest received (upto 2081-06-30)", "amt": 120.08, "bal": 383.08}, {"d": "2081-07-02", "p": "Interest received from Loan to Niraj Nepal", "amt": 2446.0, "bal": 2829.08}, {"d": "2081-07-03", "p": "Interest received from Loan to Ashish Bhujel", "amt": 714.0, "bal": 3543.08}, {"d": "2081-07-04", "p": "Interest received from Loan to Roshan Pariyar", "amt": 937.0, "bal": 4480.08}, {"d": "2081-07-05", "p": "Interest received from Loan to Bishal Rai", "amt": 197.0, "bal": 4677.08}, {"d": "2081-09-21", "p": "Interest received from Loan to Roshan Pariyar", "amt": 1331.0, "bal": 6008.08}, {"d": "2081-10-01", "p": "Bank interest received (upto 2081-09-29)", "amt": 122.37, "bal": 6130.45}, {"d": "2081-10-05", "p": "Interest received from Loan to Krishna Neupane", "amt": 407.0, "bal": 6537.45}, {"d": "2081-10-05", "p": "Interest received from Loan to Niraj Nepal", "amt": 2341.0, "bal": 8878.45}, {"d": "2081-10-05", "p": "Interest received from Loan to Ashish Bhujel", "amt": 650.0, "bal": 9528.45}, {"d": "2081-10-05", "p": "Interest received from Loan to Bishal Rai", "amt": 1675.0, "bal": 11203.45}, {"d": "2081-10-05", "p": "Interest received from Loan to Prakash Basnet", "amt": 658.0, "bal": 11861.45}, {"d": "2081-10-05", "p": "Interest received from Loan to Rupak Katwal", "amt": 115.0, "bal": 11976.45}]}, {"title_np": "आम्दानी विवरण ( आर्थिक वर्ष २०८१/०८२ को माघदेखि २०८२ अषाढमसान्त सम्मको)", "rows": [{"d": "2081-10-25", "p": "Interest received from Loan to Rupak Katwal", "amt": 395.0, "bal": 395.0}, {"d": "2081-11-05", "p": "Interest received from Krishna Neupane", "amt": 800.0, "bal": 1195.0}, {"d": "2081-11-05", "p": "Interest received from Prakash Basnet", "amt": 349.0, "bal": 1544.0}, {"d": "2081-11-15", "p": "Bank Interest Received (At closure of Account)", "amt": 94.34, "bal": 1638.34}, {"d": "2081-12-05", "p": "Interest received from Krishna Neupane", "amt": 683.0, "bal": 2321.34}, {"d": "2081-12-14", "p": "Interest received from Ashish Bhujel", "amt": 371.0, "bal": 2692.34}, {"d": "2081-12-22", "p": "Interest received from Bishal Rai", "amt": 1417.0, "bal": 4109.34}, {"d": "2081-12-22", "p": "Interest received from Prakash Basnet", "amt": 570.0, "bal": 4679.34}, {"d": "2082-01-01", "p": "Interest received from Sandesh Giri", "amt": 28.0, "bal": 4707.34}, {"d": "2082-01-03", "p": "Interest received from Bishal Khadka", "amt": 193.0, "bal": 4900.34}, {"d": "2082-01-03", "p": "Interest received from Suvas Giri", "amt": 263.0, "bal": 5163.34}, {"d": "2082-01-03", "p": "Interest received from Roshan Pariyar", "amt": 1410.0, "bal": 6573.34}, {"d": "2082-01-03", "p": "Interest received from Niraj Nepal", "amt": 4530.0, "bal": 11103.34}, {"d": "2082-01-03", "p": "Interest received from Krishna Neupane", "amt": 815.0, "bal": 11918.34}, {"d": "2082-03-12", "p": "Interest received from Dibesh Kumhar", "amt": 1149.0, "bal": 13067.34}, {"d": "2082-04-01", "p": "Bank Interest Received (Upto 2082-03-32)", "amt": 288.92, "bal": 13356.26}, {"d": "2082-04-01", "p": "Interest received from Roshan Pariyar", "amt": 2040.0, "bal": 15396.26}, {"d": "2082-04-01", "p": "Interest received from Krishna Neupane", "amt": 2471.0, "bal": 17867.260000000002}, {"d": "2082-04-01", "p": "Interest received from Niraj Nepal", "amt": 4326.0, "bal": 22193.260000000002}, {"d": "2082-04-01", "p": "Interest received from Ashish Bhujel", "amt": 2471.0, "bal": 24664.260000000002}, {"d": "2082-04-04", "p": "Interest received from Bishal Khadka", "amt": 662.0, "bal": 25326.260000000002}, {"d": "2082-04-01", "p": "Interest received from Sandesh Giri", "amt": 110.0, "bal": 25436.260000000002}, {"d": "2082-04-01", "p": "Interest received from Suvas Giri", "amt": 2471.0, "bal": 27907.260000000002}, {"d": "2082-04-01", "p": "Interest received from Arjun Dhungana", "amt": 1100.0, "bal": 29007.260000000002}, {"d": "2082-04-01", "p": "From Reserve fund", "amt": 1762.37, "bal": 30769.63}]}, {"title_np": "आम्दानी विवरण ( आर्थिक वर्ष २०८२/०८३ को साउनदेखि २०८२ असोज मसान्तसम्मको)", "rows": [{"d": "2082-04-12", "p": "Interest received from Sandesh Giri", "amt": 18.0, "bal": 18.0}, {"d": "2082-04-24", "p": "Interest received from Sandesh Giri", "amt": 74.0, "bal": 92.0}, {"d": "2082-04-25", "p": "Interest received from Krishna Neupane", "amt": 407.0, "bal": 499.0}, {"d": "2082-05-21", "p": "Interest received from Krishna Neupane", "amt": 352.0, "bal": 851.0}, {"d": "2082-06-05", "p": "Interest received from Ashish Bhujel", "amt": 2445.0, "bal": 3296.0}, {"d": "2082-06-10", "p": "Interest received from Prakash Basnet", "amt": 755.0, "bal": 4051.0}, {"d": "2082-06-10", "p": "Interest received from Dibesh Kumhar", "amt": 542.0, "bal": 4593.0}, {"d": "2082-06-31", "p": "Interest received from Krishna Neupane", "amt": 647.0, "bal": 5240.0}, {"d": "2082-06-31", "p": "Interest received from Niraj Nepal", "amt": 1833.0, "bal": 7073.0}, {"d": "2082-06-31", "p": "Interest received from Suvas Giri", "amt": 2445.0, "bal": 9518.0}, {"d": "2082-06-31", "p": "Interest received from Arjun Dhungana", "amt": 2046.0, "bal": 11564.0}, {"d": "2082-06-31", "p": "Interest received from Shiv Kumar Tajpuriya", "amt": 2416.0, "bal": 13980.0}, {"d": "2082-06-31", "p": "Interest received from Navin Niroula", "amt": 1675.0, "bal": 15655.0}, {"d": "2082-06-31", "p": "Bank Interest Received (Upto 2082-06-31)", "amt": 626.58, "bal": 16281.58}]}, {"title_np": "आम्दानी विवरण ( आर्थिक वर्ष २०८२/०८३ को कार्तिक देखि २०८२ पुस मसान्तसम्मको)", "rows": [{"d": "2082-07-22", "p": "Interest received from Roshan Pariyar", "amt": 854.0, "bal": 854.0}, {"d": "2082-08-28", "p": "Interest received from Ashish Bhujel", "amt": 3000.0, "bal": 3854.0}, {"d": "2082-09-03", "p": "Interest received from Sandesh Giri", "amt": 100.0, "bal": 3954.0}, {"d": "2082-09-30", "p": "Interest received from Roshan Pariyar", "amt": 1019.0, "bal": 4973.0}, {"d": "2082-09-30", "p": "Interest received from Krishna Neupane", "amt": 2925.0, "bal": 7898.0}, {"d": "2082-09-30", "p": "Interest received from Niraj Nepal", "amt": 1754.0, "bal": 9652.0}, {"d": "2082-09-30", "p": "Interest received from Bishal Rai", "amt": 1314.0, "bal": 10966.0}, {"d": "2082-09-30", "p": "Interest received from Prakash Basnet", "amt": 821.0, "bal": 11787.0}, {"d": "2082-09-30", "p": "Interest received from Suvas Giri", "amt": 3990.0, "bal": 15777.0}, {"d": "2082-09-30", "p": "Interest received from Dibesh Kumhar", "amt": 917.0, "bal": 16694.0}, {"d": "2082-09-30", "p": "Interest received from Arjun Dhungana", "amt": 2618.0, "bal": 19312.0}, {"d": "2082-09-30", "p": "Interest received from Shiv Kumar Tajpuriya", "amt": 2925.0, "bal": 22237.0}, {"d": "2082-09-30", "p": "Bank Interest (upto 2082-09-30)", "amt": 625.05, "bal": 22862.05}]}, {"title_np": "आम्दानी विवरण ( आर्थिक वर्ष २०८२/०८३ को माघ देखि २०८३ असार मसान्तसम्मको)", "rows": [{"d": "", "p": "", "amt": 100.0, "bal": 100.0}]}], "dist": [{"d": "2081-04-04", "p": "Total income (upto 2081-03-31)", "dr": null, "cr": 2515.92, "b": 2515.92}, {"d": "2081-04-04", "p": "Bonus distribution", "dr": 2270.0, "cr": null, "b": 245.92000000000007}, {"d": "2081-04-04", "p": "Reserve fund", "dr": 245.92, "cr": null, "b": 0.0}, {"d": "2081-10-05", "p": "Total income (From 2081-04-01 to 2081-09-29)", "dr": 0.0, "cr": 11976.45, "b": 11976.45}, {"d": "2081-10-05", "p": "Bonus distribution", "dr": 10460.0, "cr": null, "b": 1516.4500000000007}, {"d": "2081-10-05", "p": "Reserve fund", "dr": 1516.45, "cr": null, "b": 0.0}, {"d": "2082-04-01", "p": "Total income (From 2081-10-01 to 2082-03-32)", "dr": null, "cr": 30769.63, "b": 30769.63}, {"d": "2082-04-01", "p": "Bonus distribution", "dr": 30701.0, "cr": null, "b": 68.63000000000102}, {"d": "2082-04-01", "p": "Reserve fund", "dr": 68.63, "cr": null, "b": 1.0231815394945443e-12}, {"d": "2082-06-31", "p": "Total income (From 2082-04-01 to 2082-06-31)", "dr": null, "cr": 16281.58, "b": 16281.580000000002}, {"d": "2082-06-31", "p": "Bonus distribution", "dr": 16000.0, "cr": null, "b": 281.58000000000175}, {"d": "2082-06-31", "p": "Reserve fund", "dr": 281.58, "cr": null, "b": 1.7621459846850485e-12}, {"d": "2082-09-30", "p": "Total income (From 2082-07-01 to 2082-09-30)", "dr": null, "cr": 22862.05, "b": 22862.05}, {"d": "2082-09-30", "p": "Bonus distribution", "dr": 22719.0, "cr": null, "b": 143.04999999999927}, {"d": "2082-09-30", "p": "Reserve fund", "dr": 143.05, "cr": null, "b": -7.389644451905042e-13}], "reserve": [{"d": "2081-04-04", "p": "From the income upto 2081-03-31", "dr": null, "cr": 245.92, "b": 245.92}, {"d": "2081-10-05", "p": "From the income upto 2081-09-29", "dr": null, "cr": 1516.45, "b": 1762.3700000000001}, {"d": "2082-04-01", "p": "Moved to Income", "dr": 1762.37, "cr": null, "b": 0.0}, {"d": "2082-04-01", "p": "From the income upto 2082-03-32", "dr": null, "cr": 68.63, "b": 68.63}, {"d": "2082-06-31", "p": "From the income of (2082-04-01 to 2082-06-31)", "dr": null, "cr": 281.58, "b": 350.21}, {"d": "2082-09-30", "p": "From the income of (2082-07-01 to 2082-09-30)", "dr": null, "cr": 143.05, "b": 493.26}], "sheet1": [36000.0, 12000.0, 4000.0, 13000.0, 25000.0, 13000.0, 40000.0, 395.0, 25000.0, 191.92, 1271.0, 658.0, 25000.0, 25000.0, 263.0, 25000.0, 25000.0, 2446.0, 714.0, 937.0, 197.0, 15000.0, 27000.0, 317072.92000000004], "sheet2": {"title": "Income Distribution Chart (2081-04-01 to 2081-09-29)", "rows": [{"sn": "1", "name": "Bishal Rai", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "2", "name": "Shiv Kumar Tajpuriya", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "3", "name": "Niraj Nepal", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "4", "name": "Krishna Neupane", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "5", "name": "Roshan Pariyar", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "6", "name": "Aashis Bhujel", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "7", "name": "Navin Niroula", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "8", "name": "Prakash Basnet", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "9", "name": "Pasang Tamang", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "10", "name": "Dibesh Kumhar", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "11", "name": "Sandesh Giri", "open": 7140.0, "close": 13140.0, "avg": 10140.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 506.14180616120416, "avg_per_day": 0.2045844002268408, "col10": 37.234360841285024, "total": 534.3130780724401}, {"sn": "12", "name": "Rupak Katwal", "open": 9180.0, "close": 21180.0, "avg": 15180.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 757.7152482768322, "avg_per_day": 0.3062713210496492, "col10": 55.741380431036156, "total": 799.8888091853688}, {"sn": "13", "name": "Arjun Dhungana", "open": 9150.0, "close": 21150.0, "avg": 15150.0, "days": 182.0, "income_to_split": 10645.45, "avg_income": 756.2177873118583, "avg_per_day": 0.3056660417590373, "col10": 55.63121960014478, "total": 798.3080012620776}, {"sn": "14", "name": "Perish Rayamajhi", "open": 0.0, "close": 21000.0, "avg": 10500.0, "days": 84.0, "income_to_split": 10645.45, "avg_income": 524.1113377408918, "avg_per_day": 0.21184775171418424, "col10": 17.795211143991477, "total": 255.36127991627768}, {"sn": "15", "name": "Suvas Giri", "open": 0.0, "close": 21000.0, "avg": 10500.0, "days": 24.0, "income_to_split": 10645.45, "avg_income": 524.1113377408918, "avg_per_day": 0.21184775171418424, "col10": 5.084346041140422, "total": 72.96036569036505}], "totals": {"avg": 213270.0, "days": 2474.0, "total": 10459.719625980219}, "summary": {"income": 10645.45, "bonus": 10460.0, "reserve": 185.45000000000073}}};
+
+// ═══════════ HELPERS ═══════════
+const fn = (n, d=2) => {
+  if(n == null || isNaN(n)) return '—';
+  const v = Math.abs(n);
+  return '₨\u202f' + Number(n).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:d});
+};
+const fn2 = (n) => {
+  if(n == null || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:4});
+};
+const txType = p => {
+  const q = (p||'').toLowerCase();
+  if(q.includes('bank interest')) return 'bk';
+  if(q.includes('adjustment')) return 'adj';
+  if(q.includes('refund')) return 'ref';
+  if(q.includes('loan given') || q.startsWith('loan to ')) return 'lo';
+  if(q.includes('clearance') || q.includes('partial loan c') || q.includes('interest received') || q.includes('interest collection')) return 'clr';
+  if(q.includes('interest')) return 'int';
+  if(q.includes('saving')) return 'sav';
+  return 'oth';
+};
+const bdg = {
+  sav:'<span class="b b-sav">Saving</span>',
+  lo:'<span class="b b-lo">Loan Out</span>',
+  clr:'<span class="b b-clr">Received/Cleared</span>',
+  int:'<span class="b b-int">Interest</span>',
+  ref:'<span class="b b-ref">Refund</span>',
+  bk:'<span class="b b-bk">Bank Int.</span>',
+  adj:'<span class="b b-adj">Adjustment</span>',
+  oth:'<span class="b">Other</span>'
+};
+
+// ═══════════ NAV ═══════════
+function go(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t => t.classList.remove('active'));
+  document.getElementById('p-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ═══════════ OVERVIEW ═══════════
+function buildOverviewKpis() {
+  const actMembers = DATA.members.filter(m => m.status === 'active').length;
+  const lastBal = DATA.ledger[DATA.ledger.length-1].b;
+  const loanMap = {
+    'Bishal Rai':60493,'Krishna Neupane':100986,'Niraj Nepal':101097,
+    'Ashish Bhujel':100855,'Prakash Basnet':100131,'Dibesh Kumhar':100329,'Suvas Giri':30591
+  };
+  const totalLoan = Object.values(loanMap).reduce((a,b)=>a+b,0);
+  const totalInc = DATA.income_periods.slice(0,5).reduce((s,p)=>{
+    const last = p.rows[p.rows.length-1];
+    return s + (last && last.bal ? last.bal : 0);
+  }, 0);
+  const distRows = DATA.dist.filter(r => r.p === 'Bonus distribution');
+  const totalBonus = distRows.reduce((s,r) => s + (r.dr||0), 0);
+
+  const kpis = [
+    {cls:'k-gold',val:'₨\u202f2,23,584',lbl:'Current Fund Balance',sub:'As of 2082-11-12 (last entry)'},
+    {cls:'k-green',val:actMembers,lbl:'Active Members',sub:'2 inactive: Pasang Tamang, Bishal Khadka'},
+    {cls:'k-red',val:'₨\u202f5,94,482',lbl:'Outstanding Loans',sub:'7 active borrowers (current balance)'},
+    {cls:'k-blue',val:'₨\u202f8,12,000+',lbl:'Total Savings Deposits',sub:'14 active members × avg ₨58,000'},
+    {cls:'k-purple',val:'₨\u202f'+(totalInc/1000).toFixed(1)+'k',lbl:'Total Income Earned',sub:'5 completed distribution periods'},
+    {cls:'k-teal',val:'₨\u202f493.26',lbl:'Reserve Fund',sub:'जगेडा कोष — current balance'},
+    {cls:'k-orange',val:'₨\u202f'+Math.round(totalBonus).toLocaleString('en-IN'),lbl:'Total Bonus Distributed',sub:'5 distribution rounds paid out'},
+    {cls:'k-gold',val:DATA.ledger.length,lbl:'Fund Ledger Entries',sub:'कोष हिसाब total transactions'},
+  ];
+  document.getElementById('ovKpi').innerHTML = kpis.map(k=>`
+    <div class="kpi ${k.cls}">
+      <div class="klbl">${k.lbl}</div>
+      <div class="kval gold" style="font-size:${String(k.val).length>9?'18px':'22px'}">${k.val}</div>
+      <div class="ksub">${k.sub}</div>
+    </div>`).join('');
+}
+
+function buildRecent() {
+  const rows = DATA.ledger.slice(-20);
+  document.getElementById('tbRecent').innerHTML = rows.map((r,i)=>{
+    const t = txType(r.p);
+    return `<tr>
+      <td>${DATA.ledger.length-20+i+1}</td><td>${r.d}</td><td>${r.p}</td>
+      <td>${r.dr ? '<span class="dr">'+fn(r.dr)+'</span>' : '—'}</td>
+      <td>${r.cr ? '<span class="cr">'+fn(r.cr)+'</span>' : '—'}</td>
+      <td class="neu">${fn(r.b)}</td>
+      <td>${bdg[t]}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════ MEMBERS ═══════════
+function buildMembers() {
+  const nepNames = ['बिशाल राई','शिव कुमार ताजपुरिया','निरज नेपाल','कृष्ण न्यौपाने',
+    'रोशन परियार','आशिष भुजेल','नविन निरौला','प्रकाश बस्नेत',
+    'पासाङ तामांग','दिवेश कुम्हार','सन्देश गिरी','रुपक कटवाल',
+    'अर्जुन ढुंगाना','परिश रायमाझी','सुवाष गिरी','बिशाल खड्का'];
+  const curSav = {
+    'Bishal Rai ':58000,'Shiv Kumar Tajpuriya ':58000,'Niraj Nepal ':58000,
+    'Krishna Neupane ':58000,'Roshan Pariyar':58000,'Ashish Bhujel':58000,
+    'Navin Niroula':58000,'Prakash Basnet':58000,'Pasang Tamang':0,
+    'Dibesh Kumhar ':58000,'Sandesh Giri ':58000,'Rupak Katwal':58000,
+    'Arjun Dhungana':58000,'Perish Rayamajhi':58000,'Suvas Giri ':58000,'Bishal Khadka ':0
+  };
+  const curLoan = {
+    'Bishal Rai ':60493,'Krishna Neupane ':100986,'Niraj Nepal ':101097,
+    'Ashish Bhujel':100855,'Prakash Basnet':100131,'Dibesh Kumhar ':100329,'Suvas Giri ':30591
+  };
+  document.getElementById('mgrid').innerHTML = DATA.members.map((m,i) => {
+    const sav = Object.entries(curSav).find(([k])=>k.trim()===m.name.trim())?.[1] || 0;
+    const loan = Object.entries(curLoan).find(([k])=>k.trim()===m.name.trim())?.[1] || 0;
+    return `<div class="mcard${m.status==='inactive'?' ina':''}">
+      <div class="mno">${m.no}</div>
+      <div style="margin-bottom:6px">${m.status==='active'?'<span class="b b-act">Active</span>':'<span class="b b-ina">Inactive</span>'}</div>
+      <div class="mname">${m.name}</div>
+      <div class="minfo">
+        <span style="color:var(--txt2)">${nepNames[i]||''}</span><br>
+        📍 ${m.addr||'—'}<br>
+        📞 ${m.phone||'—'}<br>
+        🗓️ Joined: ${m.joined}
+      </div>
+      <div class="mstats">
+        <div class="ms"><div class="msl">Savings</div><div class="msv cr">₨\u202f${sav.toLocaleString('en-IN')}</div></div>
+        <div class="ms"><div class="msl">Loan</div><div class="msv ${loan>0?'dr':'cr'}">₨\u202f${loan.toLocaleString('en-IN')}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════ FUND LEDGER ═══════════
+function buildLedger() {
+  document.getElementById('tbLedger').innerHTML = DATA.ledger.map((r,i)=>{
+    const t = txType(r.p);
+    return `<tr data-t="${t}" data-q="${(r.p||'').toLowerCase()}">
+      <td>${i+1}</td><td>${r.d}</td><td>${r.p}</td>
+      <td>${r.dr ? '<span class="dr">'+fn(r.dr)+'</span>' : '—'}</td>
+      <td>${r.cr ? '<span class="cr">'+fn(r.cr)+'</span>' : '—'}</td>
+      <td class="neu">${fn(r.b)}</td>
+      <td>${bdg[t]||bdg.oth}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('ldgStat').textContent = `Showing ${DATA.ledger.length} of ${DATA.ledger.length} entries`;
+}
+
+function filterLedger() {
+  const q = document.getElementById('ldgQ').value.toLowerCase();
+  const t = document.getElementById('ldgT').value;
+  let vis = 0;
+  document.querySelectorAll('#tbLedger tr').forEach(r => {
+    const show = (!q || r.dataset.q.includes(q)) && (!t || r.dataset.t === t);
+    r.style.display = show ? '' : 'none';
+    if(show) vis++;
+  });
+  document.getElementById('ldgStat').textContent = `Showing ${vis} of ${DATA.ledger.length} entries`;
+}
+
+// ═══════════ SAVINGS ═══════════
+function buildSavingsSelector() {
+  const sel = document.getElementById('savMem');
+  Object.keys(DATA.savings).forEach(n => {
+    const o = document.createElement('option'); o.value = n; o.textContent = n + ' (' + DATA.savings[n].member_no + ')';
+    sel.appendChild(o);
+  });
+}
+
+function renderSavings() {
+  const v = document.getElementById('savMem').value;
+  const makeTbl = (name, info) => {
+    const rows = info.rows;
+    const last = rows[rows.length-1];
+    return `<div class="card mb">
+      <div class="ctitle">${name} <span class="ctag">${info.member_no} | Balance: ${fn(last && last.b)}</span></div>
+      <div class="tw"><table><thead><tr><th>#</th><th>Date</th><th>Particulars</th><th>Debit Rs.</th><th>Credit Rs.</th><th>Cr. Balance Rs.</th></tr></thead>
+      <tbody>${rows.map((r,i)=>`<tr>
+        <td>${i+1}</td><td>${r.d}</td><td>${r.p}</td>
+        <td>${r.dr ? '<span class="dr">'+fn(r.dr)+'</span>' : '—'}</td>
+        <td>${r.cr ? '<span class="cr">'+fn(r.cr)+'</span>' : '—'}</td>
+        <td class="neu">${fn(r.b)}</td>
+      </tr>`).join('')}</tbody></table></div>
+    </div>`;
+  };
+  document.getElementById('savContent').innerHTML = v === '__all__'
+    ? Object.entries(DATA.savings).map(([n,info]) => makeTbl(n,info)).join('')
+    : makeTbl(v, DATA.savings[v]);
+}
+
+// ═══════════ LOANS ═══════════
+function buildLoanKpis() {
+  const actives = [
+    {name:'Bishal Rai',bal:60493},{name:'Krishna Neupane',bal:100986},{name:'Niraj Nepal',bal:101097},
+    {name:'Ashish Bhujel',bal:100855},{name:'Prakash Basnet',bal:100131},{name:'Dibesh Kumhar',bal:100329},{name:'Suvas Giri',bal:30591}
+  ];
+  document.getElementById('loanKpis').innerHTML = actives.map(a=>`
+    <div class="kpi k-red">
+      <div class="klbl">${a.name}</div>
+      <div class="kval red" style="font-size:17px">₨\u202f${a.bal.toLocaleString('en-IN')}</div>
+      <div class="ksub">Outstanding balance</div>
+    </div>`).join('');
+}
+
+function buildLoanSelector() {
+  const sel = document.getElementById('loanMem');
+  Object.entries(DATA.loans).forEach(([n,info]) => {
+    const o = document.createElement('option'); o.value = n;
+    o.textContent = n + ' (' + info.member_no + ')'; sel.appendChild(o);
+  });
+}
+
+function renderLoans() {
+  const v = document.getElementById('loanMem').value;
+  const makeTbl = (name, info) => {
+    const rows = info.rows;
+    const last = rows[rows.length-1];
+    const outstanding = last && last.b > 0;
+    return `<div class="card mb">
+      <div class="ctitle">${name} — Loan Ledger <span class="ctag ${outstanding?'':''}">
+        ${outstanding ? '⚠️ Outstanding: '+fn(last.b) : '✅ Fully Cleared'}</span></div>
+      <div class="tw"><table><thead><tr><th>#</th><th>Date</th><th>Particulars</th><th>Debit Rs.</th><th>Credit Rs.</th><th>Debit Balance Rs.</th></tr></thead>
+      <tbody>${rows.map((r,i)=>`<tr${outstanding && i===rows.length-1?' class="hl"':''}>
+        <td>${i+1}</td><td>${r.d}</td><td>${r.p}</td>
+        <td>${r.dr ? '<span class="dr">'+fn(r.dr)+'</span>' : '—'}</td>
+        <td>${r.cr ? '<span class="cr">'+fn(r.cr)+'</span>' : '—'}</td>
+        <td class="${(r.b||0)>0?'dr':'cr'}">${fn(r.b)}</td>
+      </tr>`).join('')}</tbody></table></div>
+    </div>`;
+  };
+  document.getElementById('loanContent').innerHTML = v === '__all__'
+    ? Object.entries(DATA.loans).map(([n,info]) => makeTbl(n,info)).join('')
+    : makeTbl(v, DATA.loans[v]);
+}
+
+// ═══════════ INCOME ═══════════
+function renderIncomePeriod() {
+  const idx = parseInt(document.getElementById('incPer').value);
+  const p = DATA.income_periods[idx];
+  const rows = p.rows;
+  document.getElementById('tbInc').innerHTML = rows.map((r,i)=>`<tr>
+    <td>${i+1}</td><td>${r.d||'—'}</td><td>${r.p||'(upcoming period placeholder)'}</td>
+    <td class="cr">${r.amt != null ? fn(r.amt) : '—'}</td>
+    <td class="neu">${r.bal != null ? fn(r.bal) : '—'}</td>
+  </tr>`).join('');
+  const total = rows[rows.length-1];
+  document.getElementById('incStat').innerHTML = `<strong style="color:var(--gold2)">Period total: ${total && total.bal != null ? fn(total.bal) : '—'}</strong> &nbsp;·&nbsp; ${rows.length} entries &nbsp;·&nbsp; <span style="color:var(--txt3)">${p.title_np}</span>`;
+}
+
+// ═══════════ DISTRIBUTION ═══════════
+function buildDist() {
+  const rounds = [
+    {dt:'2081-04-04',period:'upto 2081-03-31',income:2515.92,bonus:2270,reserve:245.92},
+    {dt:'2081-10-05',period:'2081-04-01 to 2081-09-29',income:11976.45,bonus:10460,reserve:1516.45},
+    {dt:'2082-04-01',period:'2081-10-01 to 2082-03-32',income:30769.63,bonus:30701,reserve:68.63},
+    {dt:'2082-06-31',period:'2082-04-01 to 2082-06-31',income:16281.58,bonus:16000,reserve:281.58},
+    {dt:'2082-09-30',period:'2082-07-01 to 2082-09-30',income:22862.05,bonus:22719,reserve:143.05},
+  ];
+  document.getElementById('distCards').innerHTML = rounds.map((r,i)=>`
+    <div class="dp">
+      <div class="dph">
+        <div class="dpt">Round ${i+1} — ${r.period}</div>
+        <div style="font-size:10px;color:var(--txt3)">📅 ${r.dt}</div>
+      </div>
+      <div class="drow"><div class="drl">Total Income Earned</div><div class="drv cr">${fn(r.income)}</div></div>
+      <div class="drow"><div class="drl">Bonus Distributed to Members</div><div class="drv neu">${fn(r.bonus)}</div></div>
+      <div class="drow"><div class="drl">Transferred to Reserve Fund (जगेडा)</div><div class="drv" style="color:var(--purple)">${fn(r.reserve)}</div></div>
+      <div class="drow" style="border-bottom:none"><div class="drl" style="font-size:11px;color:var(--txt3)">Undistributed (rounding)</div><div class="drv" style="font-size:11px;color:var(--txt3)">${fn(r.income-r.bonus-r.reserve)}</div></div>
+    </div>`).join('');
+
+  // Raw table
+  document.getElementById('tbDist').innerHTML = DATA.dist.map((r,i)=>`<tr>
+    <td>${i+1}</td><td>${r.d}</td><td>${r.p}</td>
+    <td>${r.dr != null && r.dr>0 ? '<span class="dr">'+fn(r.dr)+'</span>' : '—'}</td>
+    <td>${r.cr != null && r.cr>0 ? '<span class="cr">'+fn(r.cr)+'</span>' : '—'}</td>
+    <td class="neu">${r.b != null ? fn(Math.abs(r.b)) : '—'}</td>
+  </tr>`).join('');
+}
+
+// ═══════════ RESERVE FUND ═══════════
+function buildReserve() {
+  document.getElementById('tbRes').innerHTML = DATA.reserve.map((r,i)=>`<tr>
+    <td>${i+1}</td><td>${r.d}</td><td>${r.p}</td>
+    <td>${r.dr ? '<span class="dr">'+fn(r.dr)+'</span>' : '—'}</td>
+    <td>${r.cr ? '<span class="cr">'+fn(r.cr)+'</span>' : '—'}</td>
+    <td class="neu">${fn(r.b)}</td>
+  </tr>`).join('');
+}
+
+// ═══════════ SHEET1 ═══════════
+function buildSheet1() {
+  let run = 0;
+  document.getElementById('tbSheet1').innerHTML = DATA.sheet1.map((v,i)=>{
+    const isTotal = i === DATA.sheet1.length-1;
+    if(!isTotal) run += v;
+    return `<tr${isTotal?' class="hl"':''}>
+      <td>${isTotal ? 'TOTAL' : i+1}</td>
+      <td style="color:${isTotal?'var(--gold2)':'var(--blue)'};font-weight:${isTotal?700:400}">₨\u202f${v.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td class="neu">${isTotal ? '₨\u202f'+v.toLocaleString('en-IN',{minimumFractionDigits:2}) : '₨\u202f'+run.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════ SHEET2 ═══════════
+function buildSheet2() {
+  const s = DATA.sheet2;
+  document.getElementById('s2info').innerHTML =
+    `<strong>${s.title}</strong><br>Income to distribute: <strong style="color:var(--gold2)">₨\u202f${s.summary.income?.toLocaleString('en-IN',{minimumFractionDigits:2})}</strong> &nbsp;|&nbsp; Distributed Bonus: <strong style="color:var(--green)">₨\u202f${s.summary.bonus?.toLocaleString('en-IN')}</strong> &nbsp;|&nbsp; Reserve Fund: <strong style="color:var(--purple)">₨\u202f${s.summary.reserve?.toFixed(2)}</strong>`;
+
+  document.getElementById('tbSheet2').innerHTML =
+    s.rows.map(r=>`<tr>
+      <td>${r.sn}</td><td class="nl">${r.name}</td>
+      <td>₨\u202f${(r.open||0).toLocaleString('en-IN')}</td>
+      <td>₨\u202f${(r.close||0).toLocaleString('en-IN')}</td>
+      <td>₨\u202f${(r.avg||0).toLocaleString('en-IN')}</td>
+      <td>${r.days}</td>
+      <td>₨\u202f${(r.income_to_split||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+      <td>${fn2(r.avg_income)}</td>
+      <td>${fn2(r.avg_per_day)}</td>
+      <td>${fn2(r.col10)}</td>
+      <td class="cr">₨\u202f${fn2(r.total)}</td>
+    </tr>`).join('')
+    + `<tr class="tot"><td colspan="2">Total</td><td>—</td><td>—</td>
+       <td>₨\u202f${(s.totals.avg||0).toLocaleString('en-IN')}</td>
+       <td>${s.totals.days}</td><td>—</td><td>—</td><td>—</td><td>—</td>
+       <td>₨\u202f${fn2(s.totals.total)}</td></tr>`
+    + `<tr class="sum"><td colspan="3" style="text-align:right;color:var(--txt2)">Summary →</td>
+       <td colspan="2">Income: ₨\u202f${s.summary.income?.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+       <td colspan="2">Bonus: ₨\u202f${s.summary.bonus?.toLocaleString('en-IN')}</td>
+       <td colspan="4">Reserve: ₨\u202f${s.summary.reserve?.toFixed(2)}</td></tr>`;
+}
+
+// ═══════════ CHARTS ═══════════
+Chart.defaults.color = '#8b949e';
+Chart.defaults.borderColor = '#243040';
+Chart.defaults.font.family = "'DM Sans',sans-serif";
+Chart.defaults.font.size = 11;
+const TT = {backgroundColor:'#1a2130',borderColor:'#243040',borderWidth:1,padding:10};
+
+function mkFund() {
+  const step = Math.max(1, Math.floor(DATA.ledger.length / 60));
+  const pts = DATA.ledger.filter((_,i) => i % step === 0 || i === DATA.ledger.length-1);
+  new Chart(document.getElementById('cFund'), {type:'line', data:{
+    labels: pts.map(r=>r.d),
+    datasets:[{label:'Balance',data:pts.map(r=>r.b),borderColor:'#c9a227',
+      backgroundColor:'rgba(201,162,39,.06)',borderWidth:2,pointRadius:2,fill:true,tension:.3}]
+  }, options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'₨\u202f'+c.raw.toLocaleString('en-IN',{maximumFractionDigits:0})}}},
+    scales:{x:{grid:{color:'#1a2130'},ticks:{maxRotation:40,font:{size:9},maxTicksLimit:12}},
+      y:{grid:{color:'#1a2130'},ticks:{callback:v=>'₨'+(v>=100000?(v/100000).toFixed(1)+'L':v>=1000?(v/1000).toFixed(0)+'k':v)}}}}});
+}
+
+function mkLoanChart() {
+  const d = [
+    {n:'Bishal Rai',v:60493},{n:'Krishna Neupane',v:100986},{n:'Niraj Nepal',v:101097},
+    {n:'Ashish Bhujel',v:100855},{n:'Prakash Basnet',v:100131},{n:'Dibesh Kumhar',v:100329},{n:'Suvas Giri',v:30591}
+  ];
+  new Chart(document.getElementById('cLoan'), {type:'bar', data:{
+    labels:d.map(x=>x.n.split(' ').slice(0,2).join(' ')),
+    datasets:[{data:d.map(x=>x.v),backgroundColor:'rgba(201,162,39,.65)',borderColor:'#c9a227',borderWidth:1.5,borderRadius:5}]
+  }, options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'₨\u202f'+c.raw.toLocaleString('en-IN')}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+      y:{grid:{color:'#1a2130'},ticks:{callback:v=>'₨'+(v>=100000?(v/100000).toFixed(0)+'L':v>=1000?(v/1000)+'k':v)}}}}});
+}
+
+function mkIncPie() {
+  const totals = [2515.92,11976.45,30769.63,16281.58,22862.05];
+  const lbls = ['P1 (2081-03)','P2 (2081-09)','P3 (2082-03)','P4 (2082-06)','P5 (2082-09)'];
+  new Chart(document.getElementById('cIncPie'), {type:'doughnut', data:{
+    labels:lbls,
+    datasets:[{data:totals,backgroundColor:['#c9a227','#58a6ff','#3fb950','#a371f7','#f0883e'],borderColor:'#131920',borderWidth:3}]
+  }, options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+    plugins:{legend:{position:'bottom',labels:{padding:8,font:{size:10},boxWidth:9}},
+      tooltip:{...TT,callbacks:{label:c=>c.label+': ₨\u202f'+c.raw.toLocaleString('en-IN',{minimumFractionDigits:2})}}}}});
+}
+
+function mkSavBar() {
+  const names = Object.keys(DATA.savings).filter(n=>!n.includes('Pasang')&&!n.includes('Bishal Khadka'));
+  const svals = names.map(n=>{ const rows=DATA.savings[n].rows; return rows[rows.length-1]?.b||0; });
+  new Chart(document.getElementById('cSav'), {type:'bar', data:{
+    labels:names.map(n=>n.split(' ')[0]),
+    datasets:[{data:svals,backgroundColor:'rgba(88,166,255,.65)',borderColor:'#58a6ff',borderWidth:1.5,borderRadius:4}]
+  }, options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'₨\u202f'+c.raw.toLocaleString('en-IN')}}},
+    scales:{x:{grid:{display:false},ticks:{font:{size:9}}},
+      y:{grid:{color:'#1a2130'},ticks:{callback:v=>'₨'+(v>=1000?(v/1000).toFixed(0)+'k':v)}}}}});
+}
+
+function mkIncBar() {
+  const totals = [2515.92,11976.45,30769.63,16281.58,22862.05];
+  new Chart(document.getElementById('cIncBar'), {type:'bar', data:{
+    labels:['P1','P2','P3','P4','P5'],
+    datasets:[{label:'Total Income',data:totals,backgroundColor:'rgba(63,185,80,.65)',borderColor:'#3fb950',borderWidth:1.5,borderRadius:5}]
+  }, options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'₨\u202f'+c.raw.toLocaleString('en-IN',{minimumFractionDigits:2})}}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'#1a2130'},ticks:{callback:v=>'₨'+(v>=1000?(v/1000).toFixed(0)+'k':v)}}}}});
+}
+
+function mkDistBar() {
+  const bonus=[2270,10460,30701,16000,22719];
+  const res=[245.92,1516.45,68.63,281.58,143.05];
+  new Chart(document.getElementById('cDistBar'), {type:'bar', data:{
+    labels:['P1','P2','P3','P4','P5'],
+    datasets:[
+      {label:'Bonus',data:bonus,backgroundColor:'rgba(88,166,255,.7)',borderColor:'#58a6ff',borderWidth:1,borderRadius:0},
+      {label:'Reserve',data:res,backgroundColor:'rgba(163,113,247,.7)',borderColor:'#a371f7',borderWidth:1,borderRadius:0}
+    ]
+  }, options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'bottom',labels:{padding:8,font:{size:10},boxWidth:9}},
+      tooltip:{...TT,callbacks:{label:c=>c.dataset.label+': ₨\u202f'+c.raw.toLocaleString('en-IN',{minimumFractionDigits:2})}}},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a2130'},ticks:{callback:v=>'₨'+(v>=1000?(v/1000).toFixed(0)+'k':v)}}}}});
+}
+
+function mkResChart() {
+  new Chart(document.getElementById('cRes'), {type:'line', data:{
+    labels:['2081-04-04','2081-10-05','2082-04-01\n(moved)','2082-04-01\n(new)','2082-06-31','2082-09-30'],
+    datasets:[{label:'Reserve Balance',data:[245.92,1762.37,0,68.63,350.21,493.26],
+      borderColor:'#56d3db',backgroundColor:'rgba(86,211,219,.08)',borderWidth:2.5,
+      pointRadius:5,pointBackgroundColor:'#56d3db',fill:true,tension:.3}]
+  }, options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:c=>'₨\u202f'+c.raw.toLocaleString('en-IN',{minimumFractionDigits:2})}}},
+    scales:{x:{grid:{color:'#1a2130'},ticks:{font:{size:9}}},y:{grid:{color:'#1a2130'},ticks:{callback:v=>'₨\u202f'+v}}}}});
+}
+
+// ═══════════ INIT ═══════════
+window.addEventListener('DOMContentLoaded', () => {
+  buildOverviewKpis();
+  buildRecent();
+  buildMembers();
+  buildLedger();
+  buildSavingsSelector(); renderSavings();
+  buildLoanKpis(); buildLoanSelector(); renderLoans();
+  renderIncomePeriod();
+  buildDist();
+  buildReserve();
+  buildSheet1();
+  buildSheet2();
+  mkFund(); mkLoanChart(); mkIncPie(); mkSavBar();
+  mkIncBar(); mkDistBar(); mkResChart();
+});
+</script>
+</body>
+</html>
