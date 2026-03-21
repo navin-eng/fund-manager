@@ -129,25 +129,29 @@ export default function LoanList() {
 
   // Compute summary from loans if not provided by API
   useEffect(() => {
-    if (loans.length > 0 && summary.totalDisbursed === 0) {
-      const computed = loans.reduce(
-        (acc, loan) => {
-          if (loan.status !== 'pending') {
-            acc.totalDisbursed += Number(loan.amount || loan.principal || 0);
-          }
-          if (loan.status === 'active') {
-            acc.outstandingAmount += Number(loan.outstanding_balance || loan.remainingBalance || 0);
-          }
-          acc.interestEarned += Number(loan.interest_earned || loan.totalInterestPaid || 0);
-          if (loan.is_overdue || loan.status === 'defaulted') {
-            acc.overdueLoans += 1;
-          }
-          return acc;
-        },
-        { totalDisbursed: 0, outstandingAmount: 0, interestEarned: 0, overdueLoans: 0 }
-      );
-      setSummary(computed);
+    if (loans.length === 0) {
+      setSummary({ totalDisbursed: 0, outstandingAmount: 0, interestEarned: 0, overdueLoans: 0 });
+      return;
     }
+
+    const computed = loans.reduce(
+      (acc, loan) => {
+        if (loan.status !== 'pending') {
+          acc.totalDisbursed += Number(loan.amount || loan.principal || 0);
+        }
+        if (loan.status === 'active') {
+          acc.outstandingAmount += Number(loan.remaining_balance || loan.outstanding_balance || loan.remainingBalance || 0);
+        }
+        acc.interestEarned += Number(loan.total_interest || loan.interest_earned || loan.totalInterestPaid || 0);
+        if (loan.is_overdue || loan.status === 'defaulted') {
+          acc.overdueLoans += 1;
+        }
+        return acc;
+      },
+      { totalDisbursed: 0, outstandingAmount: 0, interestEarned: 0, overdueLoans: 0 }
+    );
+
+    setSummary(computed);
   }, [loans]);
 
   const handleApprove = async (loanId) => {

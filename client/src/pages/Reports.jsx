@@ -33,6 +33,14 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useLocale } from '../contexts/LocaleContext';
+import {
+  normalizeBalanceSheet,
+  normalizeIncomeStatement,
+  normalizeLoanPortfolio,
+  normalizeMemberSavingsReport,
+  normalizeOverdueLoans,
+  normalizeReportSummary,
+} from '../utils/apiTransforms';
 
 const API_BASE = '';
 
@@ -42,7 +50,7 @@ const PERIODS = [
   { key: 'fortnightly', label: 'Fortnightly' },
   { key: 'monthly', label: 'Monthly' },
   { key: 'trimester', label: 'Trimester' },
-  { key: '6months', label: '6 Months' },
+  { key: 'semi-annual', label: '6 Months' },
   { key: 'yearly', label: 'Yearly' },
 ];
 
@@ -127,7 +135,7 @@ function printSection(sectionId) {
   printWindow.print();
 }
 export default function Reports() {
-  const { formatDate: localeFormatDate, formatCurrency: localeFormatCurrency } = useLocale();
+  const { formatDate: localeFormatDate, formatCurrency: localeFormatCurrency, getTodayDateInputValue } = useLocale();
 
   const formatCurrency = (amount) => {
     return localeFormatCurrency(Number(amount) || 0);
@@ -139,25 +147,26 @@ export default function Reports() {
   };
 
   const [period, setPeriod] = useState('monthly');
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => getTodayDateInputValue());
   const [loading, setLoading] = useState({});
   const [summary, setSummary] = useState(null);
   const [memberSavings, setMemberSavings] = useState([]);
-  const [loanPortfolio, setLoanPortfolio] = useState([]);
+  const [loanPortfolio, setLoanPortfolio] = useState({ rows: [], totalOutstanding: 0, averageLoanSize: 0 });
   const [incomeStatement, setIncomeStatement] = useState(null);
   const [balanceSheet, setBalanceSheet] = useState(null);
   const [overdueLoans, setOverdueLoans] = useState([]);
   const [error, setError] = useState(null);
 
-  const fetchData = useCallback(async (key, url, setter) => {
+  const fetchData = useCallback(async (key, url, setter, transform = (data) => data) => {
     setLoading((prev) => ({ ...prev, [key]: true }));
     try {
       const res = await fetch(`${API_BASE}${url}`);
       if (!res.ok) throw new Error(`Failed to fetch ${key}`);
       const data = await res.json();
-      setter(data);
+      setter(transform(data));
     } catch (err) {
       console.error(`Error fetching ${key}:`, err);
+      setError(`Failed to fetch ${key}.`);
     } finally {
       setLoading((prev) => ({ ...prev, [key]: false }));
     }
@@ -166,27 +175,29 @@ export default function Reports() {
   const generateReport = useCallback(() => {
     setError(null);
     const params = `period=${period}&date=${date}`;
-    fetchData('summary', `/api/reports/summary?${params}`, setSummary);
-    fetchData('memberSavings', `/api/reports/member-savings?${params}`, setMemberSavings);
-    fetchData('loanPortfolio', `/api/reports/loan-portfolio?${params}`, setLoanPortfolio);
-    fetchData('incomeStatement', `/api/reports/income-statement?${params}`, setIncomeStatement);
-    fetchData('balanceSheet', `/api/reports/balance-sheet?${params}`, setBalanceSheet);
-    fetchData('overdueLoans', `/api/reports/overdue-loans?${params}`, setOverdueLoans);
+    fetchData('summary', `/api/reports/summary?${params}`, setSummary, normalizeReportSummary);
+    fetchData('memberSavings', `/api/reports/member-savings?${params}`, setMemberSavings, normalizeMemberSavingsReport);
+    fetchData('loanPortfolio', `/api/reports/loan-portfolio?${params}`, setLoanPortfolio, normalizeLoanPortfolio);
+    fetchData('incomeStatement', `/api/reports/income-statement?${params}`, setIncomeStatement, normalizeIncomeStatement);
+    fetchData('balanceSheet', `/api/reports/balance-sheet?${params}`, setBalanceSheet, normalizeBalanceSheet);
+    fetchData('overdueLoans', `/api/reports/overdue-loans?${params}`, setOverdueLoans, normalizeOverdueLoans);
   }, [period, date, fetchData]);
 
   useEffect(() => {
     generateReport();
-  }, []);
+  }, [generateReport]);
 
   // Chart data derived from summary
-  const savingsVsLoansData = summary?.savingsVsLoans || [
-    { month: 'Period 1', savings: 0, loans: 0 },
+  const savingsVsLoansData = [
+    { month: 'Selected Period', savings: summary?.totalSavings || 0, loans: summary?.loansDisbursed || 0 },
   ];
-  const fundTrendData = summary?.fundTrend || [
-    { month: 'Current', balance: summary?.netFundBalance || 0 },
+  const fundTrendData = [
+    { month: 'Savings', balance: summary?.totalSavings || 0 },
+    { month: 'Loans', balance: summary?.loansDisbursed || 0 },
+    { month: 'Fund', balance: summary?.netFundBalance || 0 },
   ];
-  const loanStatusData = loanPortfolio.length
-    ? loanPortfolio.map((item) => ({ name: item.status, value: Number(item.totalAmount) || 0 }))
+  const loanStatusData = loanPortfolio.rows.length
+    ? loanPortfolio.rows.map((item) => ({ name: item.status, value: Number(item.count) || 0 }))
     : [{ name: 'No Data', value: 1 }];
 
   return (
@@ -291,13 +302,13 @@ export default function Reports() {
             />
             <SummaryCard
               title="Member Count"
-              value={summary?.memberCount ?? '-'}
+              value={summary ? summary.memberCount.toLocaleString() : '-'}
               icon={Users}
               color="sky"
             />
             <SummaryCard
               title="Active Loans"
-              value={summary?.activeLoans ?? '-'}
+              value={summary ? summary.activeLoans.toLocaleString() : '-'}
               icon={FileText}
               color="slate"
             />
@@ -332,7 +343,7 @@ export default function Reports() {
 
         {/* Fund Balance Trend Line Chart */}
         <div id="section-chart-line" className="rounded-xl bg-white p-6 shadow-sm border border-slate-100">
-          <SectionHeader icon={TrendingUp} title="Fund Balance Trend" />
+          <SectionHeader icon={TrendingUp} title="Financial Snapshot" />
           {loading.summary ? (
             <LoadingSpinner />
           ) : (
@@ -352,7 +363,7 @@ export default function Reports() {
                   strokeWidth={2}
                   dot={{ fill: '#6366f1', r: 4 }}
                   activeDot={{ r: 6 }}
-                  name="Fund Balance"
+                  name="Balance"
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -381,7 +392,7 @@ export default function Reports() {
                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Tooltip />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -415,7 +426,7 @@ export default function Reports() {
                 {Array.isArray(memberSavings) && memberSavings.length > 0 ? (
                   memberSavings.map((row, i) => (
                     <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-4 py-3 text-slate-800 font-medium">{row.memberName || row.member || '-'}</td>
+                      <td className="px-4 py-3 text-slate-800 font-medium">{row.memberName}</td>
                       <td className="px-4 py-3 text-right text-emerald-600">{formatCurrency(row.deposits)}</td>
                       <td className="px-4 py-3 text-right text-rose-600">{formatCurrency(row.withdrawals)}</td>
                       <td className="px-4 py-3 text-right font-semibold text-slate-800">{formatCurrency(row.netSavings)}</td>
@@ -458,8 +469,8 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {Array.isArray(loanPortfolio) && loanPortfolio.length > 0 ? (
-                  loanPortfolio.map((row, i) => (
+                {loanPortfolio.rows.length > 0 ? (
+                  loanPortfolio.rows.map((row, i) => (
                     <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-4 py-3">
                         <span
@@ -515,9 +526,13 @@ export default function Reports() {
               <span className="text-slate-600">Penalty Income</span>
               <span className="font-semibold text-slate-800">{formatCurrency(incomeStatement.penaltyIncome)}</span>
             </div>
+            <div className="flex justify-between items-center py-2 border-b border-slate-100">
+              <span className="text-slate-600">Expenses</span>
+              <span className="font-semibold text-slate-800">{formatCurrency(incomeStatement.expenses)}</span>
+            </div>
             <div className="flex justify-between items-center py-3 border-t-2 border-indigo-200 bg-indigo-50/50 rounded-lg px-3 mt-2">
-              <span className="font-semibold text-indigo-800">Total Income</span>
-              <span className="text-lg font-bold text-indigo-700">{formatCurrency(incomeStatement.totalIncome)}</span>
+              <span className="font-semibold text-indigo-800">Net Income</span>
+              <span className="text-lg font-bold text-indigo-700">{formatCurrency(incomeStatement.netIncome)}</span>
             </div>
           </div>
         ) : (
@@ -545,13 +560,13 @@ export default function Reports() {
                   <span className="font-semibold text-slate-800">{formatCurrency(balanceSheet.outstandingLoans)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-600">Cash Balance</span>
-                  <span className="font-semibold text-slate-800">{formatCurrency(balanceSheet.cashBalance)}</span>
+                  <span className="text-slate-600">Unpaid Penalties</span>
+                  <span className="font-semibold text-slate-800">{formatCurrency(balanceSheet.unpaidPenalties)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 bg-emerald-50/50 rounded-lg px-3">
                   <span className="font-semibold text-emerald-800">Total Assets</span>
                   <span className="font-bold text-emerald-700">
-                    {formatCurrency((Number(balanceSheet.outstandingLoans) || 0) + (Number(balanceSheet.cashBalance) || 0))}
+                    {formatCurrency(balanceSheet.totalAssets)}
                   </span>
                 </div>
               </div>
@@ -567,7 +582,7 @@ export default function Reports() {
                 </div>
                 <div className="flex justify-between items-center py-2 bg-rose-50/50 rounded-lg px-3">
                   <span className="font-semibold text-rose-800">Total Liabilities</span>
-                  <span className="font-bold text-rose-700">{formatCurrency(balanceSheet.memberSavings)}</span>
+                  <span className="font-bold text-rose-700">{formatCurrency(balanceSheet.totalLiabilities)}</span>
                 </div>
               </div>
 
@@ -576,11 +591,6 @@ export default function Reports() {
                   <span className="font-semibold text-indigo-800">Fund Balance</span>
                   <span className="text-lg font-bold text-indigo-700">{formatCurrency(balanceSheet.fundBalance)}</span>
                 </div>
-                {balanceSheet.adjustments != null && Number(balanceSheet.adjustments) !== 0 && (
-                  <p className="text-xs text-slate-400 mt-1 text-right">
-                    Includes adjustments: {formatCurrency(balanceSheet.adjustments)}
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -605,7 +615,7 @@ export default function Reports() {
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Member</th>
                   <th className="px-4 py-3 text-right font-semibold text-slate-700">Loan Amount</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Overdue Days</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Missed Payments</th>
                   <th className="px-4 py-3 text-right font-semibold text-slate-700">Penalty Amount</th>
                 </tr>
               </thead>
@@ -613,17 +623,17 @@ export default function Reports() {
                 {Array.isArray(overdueLoans) && overdueLoans.length > 0 ? (
                   overdueLoans.map((row, i) => (
                     <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-4 py-3 text-slate-800 font-medium">{row.memberName || row.member || '-'}</td>
+                      <td className="px-4 py-3 text-slate-800 font-medium">{row.memberName}</td>
                       <td className="px-4 py-3 text-right text-slate-800">{formatCurrency(row.loanAmount)}</td>
                       <td className="px-4 py-3 text-right">
                         <span
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            (row.overdueDays || 0) > 30
+                            (row.missedPayments || 0) > 2
                               ? 'bg-rose-50 text-rose-700'
                               : 'bg-amber-50 text-amber-700'
                           }`}
                         >
-                          {row.overdueDays} days
+                          {row.missedPayments} {row.missedPayments === 1 ? 'month' : 'months'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-rose-600">{formatCurrency(row.penaltyAmount)}</td>

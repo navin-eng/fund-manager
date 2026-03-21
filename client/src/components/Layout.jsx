@@ -1,24 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Users,
-  PiggyBank,
-  Landmark,
   BarChart3,
-  Settings,
-  Wallet,
-  Menu,
-  X,
-  Database,
-  Shield,
-  LogOut,
   BookOpen,
-  TrendingUp,
+  ChevronUp,
+  Database,
   Gift,
+  Landmark,
+  LayoutDashboard,
   Lock,
+  LogOut,
+  Moon,
+  PiggyBank,
+  Settings,
+  Shield,
+  SunMedium,
+  TrendingUp,
+  Users,
+  Wallet,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocale } from '../contexts/LocaleContext';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -34,6 +37,8 @@ const navigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'User Management', href: '/users', icon: Shield, adminOnly: true },
 ];
+
+const mobilePrimaryHrefs = ['/', '/members', '/savings', '/loans'];
 
 const pageTitles = {
   '/': 'Dashboard',
@@ -56,7 +61,6 @@ const pageTitles = {
 function getCurrentFiscalYear() {
   const now = new Date();
   const month = now.getMonth();
-  // Fiscal year starts in July (month index 6) for Nepal-style FY
   const startYear = month >= 6 ? now.getFullYear() : now.getFullYear() - 1;
   return `${startYear}/${startYear + 1}`;
 }
@@ -69,129 +73,343 @@ function getPageTitle(pathname) {
   return 'Fund Manager';
 }
 
+function isRouteActive(pathname, href) {
+  return href === '/'
+    ? pathname === '/'
+    : pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function Layout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const location = useLocation();
+  const drawerId = useId();
   const pageTitle = getPageTitle(location.pathname);
   const { user, logout } = useAuth();
+  const { theme, setTheme } = useLocale();
 
   const filteredNavigation = navigation.filter(
     (item) => !item.adminOnly || (user && user.role === 'admin')
   );
+  const mobilePrimaryNavigation = filteredNavigation.filter((item) =>
+    mobilePrimaryHrefs.includes(item.href)
+  );
+  const hasSecondaryRouteActive = filteredNavigation.some(
+    (item) => !mobilePrimaryHrefs.includes(item.href) && isRouteActive(location.pathname, item.href)
+  );
+
+  useEffect(() => {
+    setSheetOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!sheetOpen) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setSheetOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [sheetOpen]);
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  const themeToggleLabel =
+    theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100">
-      {/* Mobile backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-200 ease-in-out
-          lg:static lg:translate-x-0
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
-      >
-        <div className="flex h-full flex-col bg-gradient-to-b from-indigo-950 via-indigo-900 to-slate-900">
-          {/* Logo */}
-          <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/20">
-              <Wallet className="h-6 w-6 text-indigo-300" />
+    <div className="app-shell flex h-screen overflow-hidden">
+      <aside className="hidden h-screen w-[19.5rem] shrink-0 p-3 lg:flex">
+        <div className="glass-panel-strong flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[2rem]">
+          <div className="shrink-0 border-b border-slate-200 px-6 py-6 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[1.35rem] bg-indigo-600 text-white shadow-sm">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  Fund Manager
+                </h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Financial Management
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-white tracking-tight">Fund Manager</h1>
-              <p className="text-xs text-indigo-300/70">Financial Management</p>
-            </div>
-            <button
-              className="ml-auto lg:hidden text-white/70 hover:text-white"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </button>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <nav
+            aria-label="Sidebar navigation"
+            className="sidebar-scroll flex-1 space-y-2 overflow-y-auto px-4 py-5"
+          >
             {filteredNavigation.map((item) => {
-              const isActive =
-                item.href === '/'
-                  ? location.pathname === '/'
-                  : location.pathname.startsWith(item.href);
+              const isActive = isRouteActive(location.pathname, item.href);
 
               return (
                 <NavLink
                   key={item.name}
                   to={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
-                    ${
-                      isActive
-                        ? 'bg-indigo-500/20 text-white shadow-sm'
-                        : 'text-indigo-200/70 hover:bg-white/5 hover:text-white'
-                    }
-                  `}
+                  className={`flex items-center gap-3 rounded-[1.35rem] px-4 py-3 text-sm font-medium transition-all ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                      : 'text-slate-700 hover:bg-white/55 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white'
+                  }`}
                 >
-                  <item.icon className={`h-5 w-5 ${isActive ? 'text-indigo-300' : ''}`} />
-                  {item.name}
+                  <item.icon
+                    className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`}
+                  />
+                  <span>{item.name}</span>
                   {isActive && (
-                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                    <span className="ml-auto h-2 w-2 rounded-full bg-white/80" aria-hidden="true" />
                   )}
                 </NavLink>
               );
             })}
           </nav>
 
-          {/* User & Fiscal Year Footer */}
-          <div className="border-t border-white/10 px-4 py-3">
-            {user && (
-              <div className="flex items-center justify-between mb-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                  <p className="text-xs text-indigo-300/60 capitalize">{user.role}</p>
+          <div className="shrink-0 border-t border-slate-200 px-4 py-4 dark:border-slate-800">
+            <div className="glass-panel-soft rounded-[1.5rem] p-4">
+              {user && (
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {user.name}
+                    </p>
+                    <p className="text-xs capitalize text-slate-500 dark:text-slate-400">
+                      {user.role}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="glass-chip inline-flex h-10 w-10 items-center justify-center rounded-[1rem] text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-300 dark:hover:text-white"
+                    aria-label="Log out"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+
+              <div className="glass-panel flex items-center justify-between rounded-[1.3rem] px-4 py-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
+                    Fiscal Year
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    {getCurrentFiscalYear()}
+                  </p>
                 </div>
                 <button
-                  onClick={logout}
-                  className="p-2 rounded-lg text-indigo-300/60 hover:text-white hover:bg-white/10 transition-colors"
-                  title="Logout"
+                  type="button"
+                  onClick={toggleTheme}
+                  className="glass-chip inline-flex h-10 w-10 items-center justify-center rounded-[1rem] text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-300 dark:hover:text-white"
+                  aria-label={themeToggleLabel}
                 >
-                  <LogOut className="h-4 w-4" />
+                  {theme === 'dark' ? (
+                    <SunMedium className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
                 </button>
               </div>
-            )}
-            <div className="pt-2 border-t border-white/5">
-              <p className="text-xs text-indigo-300/50 uppercase tracking-wider">Fiscal Year</p>
-              <p className="mt-1 text-sm font-semibold text-indigo-200">
-                {getCurrentFiscalYear()}
-              </p>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Main content area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="flex h-16 items-center gap-4 border-b border-slate-200 bg-white px-4 sm:px-6 shadow-sm">
+      {sheetOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px] lg:hidden"
+          onClick={() => setSheetOpen(false)}
+          aria-label="Close navigation sheet"
+        />
+      )}
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-[5.8rem] z-30 flex justify-center lg:hidden">
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          aria-controls={drawerId}
+          aria-expanded={sheetOpen}
+          aria-label="Open all sections"
+          className={`glass-chip pointer-events-auto inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-slate-700 shadow-lg transition-all dark:text-slate-200 ${
+            sheetOpen || hasSecondaryRouteActive ? 'ring-2 ring-indigo-500/45' : ''
+          }`}
+        >
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-white">
+            <ChevronUp className="h-4 w-4" />
+          </span>
+          <span>All Sections</span>
+        </button>
+      </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-3 lg:hidden">
+        <div
+          id={drawerId}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`${drawerId}-title`}
+          className={`glass-sheet pointer-events-auto mx-auto flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-[2rem] transition-transform duration-300 ${
+            sheetOpen ? 'translate-y-0' : 'translate-y-[calc(100%+1.5rem)]'
+          }`}
+        >
           <button
-            className="lg:hidden text-slate-500 hover:text-slate-700"
-            onClick={() => setSidebarOpen(true)}
+            type="button"
+            onClick={() => setSheetOpen(false)}
+            className="flex flex-col items-center gap-2 px-6 pb-3 pt-4"
+            aria-label="Close sections sheet"
           >
-            <Menu className="h-6 w-6" />
+            <span className="h-1.5 w-14 rounded-full bg-slate-300/80 dark:bg-slate-700/80" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
+              Slide Down To Close
+            </span>
           </button>
-          <h2 className="text-xl font-semibold text-slate-800">{pageTitle}</h2>
+
+          <div className="flex items-start justify-between gap-4 px-6 pb-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
+                Navigation
+              </p>
+              <h2 id={`${drawerId}-title`} className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
+                All Sections
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSheetOpen(false)}
+              className="glass-chip inline-flex h-10 w-10 items-center justify-center rounded-[1rem] text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-300 dark:hover:text-white"
+              aria-label="Close sections sheet"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="sidebar-scroll flex-1 overflow-y-auto px-4 pb-4">
+            <nav aria-label="Mobile navigation" className="grid gap-2">
+              {filteredNavigation.map((item) => {
+                const isActive = isRouteActive(location.pathname, item.href);
+
+                return (
+                  <NavLink
+                    key={item.name}
+                    to={item.href}
+                    onClick={() => setSheetOpen(false)}
+                    className={`flex items-center gap-3 rounded-[1.35rem] px-4 py-3 text-sm font-medium transition-all ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                        : 'text-slate-700 hover:bg-white/55 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white'
+                    }`}
+                  >
+                    <item.icon
+                      className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`}
+                    />
+                    <span>{item.name}</span>
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+
+          <div className="shrink-0 border-t border-slate-200 px-4 py-4 dark:border-slate-800">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="glass-chip inline-flex items-center justify-center gap-2 rounded-[1.25rem] px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200 dark:hover:text-white"
+              >
+                {theme === 'dark' ? (
+                  <SunMedium className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                className="glass-chip inline-flex items-center justify-center gap-2 rounded-[1.25rem] px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200 dark:hover:text-white"
+              >
+                <LogOut className="h-4 w-4" />
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="shrink-0 px-4 pt-3 sm:px-6 sm:pt-4">
+          <div className="glass-header flex items-center justify-between gap-4 rounded-[1.75rem] px-4 py-4 sm:px-6">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
+                Fund Manager
+              </p>
+              <h2 className="truncate text-xl font-semibold text-slate-900 dark:text-slate-100">
+                {pageTitle}
+              </h2>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="glass-panel hidden rounded-[1.25rem] px-4 py-2 text-right sm:block">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Fiscal Year
+                </p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  {getCurrentFiscalYear()}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="glass-chip inline-flex h-11 w-11 items-center justify-center rounded-[1.1rem] text-slate-600 transition-colors hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-300 dark:hover:text-white"
+                aria-label={themeToggleLabel}
+              >
+                {theme === 'dark' ? (
+                  <SunMedium className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="app-main-scroll flex-1 overflow-y-auto px-4 pb-36 pt-4 sm:px-6 sm:pb-40 lg:pb-6">
           <Outlet />
         </main>
       </div>
+
+      <nav
+        aria-label="Quick navigation"
+        className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-3 lg:hidden"
+      >
+        <div className="glass-bottom-nav pointer-events-auto flex items-center gap-1 rounded-full px-2 py-2">
+          {mobilePrimaryNavigation.map((item) => {
+            const isActive = isRouteActive(location.pathname, item.href);
+
+            return (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                className={`flex min-w-[4.6rem] flex-col items-center gap-1 rounded-full px-3 py-2 text-[11px] font-medium transition-all ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                    : 'text-slate-700 hover:bg-white/60 dark:text-slate-300 dark:hover:bg-white/10'
+                }`}
+              >
+                <item.icon className="h-4 w-4" />
+                <span className="truncate">{item.name}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

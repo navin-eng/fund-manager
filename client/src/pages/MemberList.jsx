@@ -287,7 +287,7 @@ export default function MemberList() {
                           {member.phone || '—'}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatDate(member.joined_date || member.createdAt)}
+                          {formatDate(member.joinedDate || member.createdAt)}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-800 font-medium text-right">
                           {formatCurrency(member.totalSavings)}

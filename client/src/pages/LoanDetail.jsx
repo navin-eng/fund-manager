@@ -97,7 +97,7 @@ export default function LoanDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const { formatDate: localeFormatDate } = useLocale();
+  const { formatDate: localeFormatDate, getTodayDateInputValue } = useLocale();
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -118,7 +118,7 @@ export default function LoanDetail() {
   const [showRepaymentForm, setShowRepaymentForm] = useState(false);
   const [repaymentForm, setRepaymentForm] = useState({
     amount: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayDateInputValue(),
     notes: '',
   });
   const [submittingRepayment, setSubmittingRepayment] = useState(false);
@@ -217,7 +217,7 @@ export default function LoanDetail() {
         date: repaymentForm.date,
         notes: repaymentForm.notes.trim() || undefined,
       });
-      setRepaymentForm({ amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
+      setRepaymentForm({ amount: '', date: getTodayDateInputValue(), notes: '' });
       setShowRepaymentForm(false);
       fetchLoan();
       fetchSchedule();
@@ -282,11 +282,8 @@ export default function LoanDetail() {
   const getStartDate = () => loan?.start_date || loan?.startDate || loan?.created_at;
   const getEndDate = () => {
     if (loan?.end_date || loan?.endDate) return loan.end_date || loan.endDate;
-    const start = getStartDate();
-    if (!start) return null;
-    const d = new Date(start);
-    d.setMonth(d.getMonth() + getTerm());
-    return d.toISOString();
+    const lastScheduleEntry = schedule[schedule.length - 1];
+    return lastScheduleEntry?.due_date || lastScheduleEntry?.dueDate || null;
   };
 
   const getRepayments = () => loan?.repayments || loan?.payments || [];
@@ -411,8 +408,8 @@ export default function LoanDetail() {
           { label: 'Interest Rate', value: `${getRate()}% p.a.`, icon: Percent, color: 'text-amber-600', bg: 'bg-amber-50' },
           { label: 'Term', value: `${getTerm()} months`, icon: Hash, color: 'text-slate-600', bg: 'bg-slate-100' },
           { label: 'Monthly EMI', value: `Rs. ${formatCurrency(getEMI())}`, icon: CircleDollarSign, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: 'Start Date', value: formatDateLocal(getStartDate()), icon: Calendar, color: 'text-slate-600', bg: 'bg-slate-100' },
-          { label: 'End Date', value: formatDateLocal(getEndDate()), icon: Calendar, color: 'text-slate-600', bg: 'bg-slate-100' },
+          { label: 'Start Date', value: formatDate(getStartDate()), icon: Calendar, color: 'text-slate-600', bg: 'bg-slate-100' },
+          { label: 'End Date', value: formatDate(getEndDate()), icon: Calendar, color: 'text-slate-600', bg: 'bg-slate-100' },
           { label: 'Total Interest', value: `Rs. ${formatCurrency(getTotalInterest())}`, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
           { label: 'Total Repayable', value: `Rs. ${formatCurrency(getTotalRepayable())}`, icon: Banknote, color: 'text-slate-700', bg: 'bg-slate-100' },
         ].map((card) => {
@@ -623,7 +620,7 @@ export default function LoanDetail() {
                   {repayments.map((r, idx) => (
                     <tr key={r.id || idx} className="hover:bg-slate-50/50">
                       <td className="whitespace-nowrap px-4 py-2.5 text-sm text-slate-700">
-                        {formatDateLocal(r.date || r.payment_date || r.created_at)}
+                        {formatDate(r.date || r.payment_date || r.created_at)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right text-sm font-semibold text-slate-900">
                         Rs. {formatCurrency(r.amount)}
@@ -769,7 +766,7 @@ export default function LoanDetail() {
                         {doc.filename || doc.name || doc.original_name || `Document ${idx + 1}`}
                       </p>
                       {doc.uploaded_at && (
-                        <p className="text-xs text-slate-400">{formatDateLocal(doc.uploaded_at)}</p>
+                        <p className="text-xs text-slate-400">{formatDate(doc.uploaded_at)}</p>
                       )}
                     </div>
                     {(doc.url || doc.download_url || doc.path) && (

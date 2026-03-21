@@ -14,23 +14,23 @@ import {
   Camera,
   X,
 } from 'lucide-react';
-
-const initialFormData = {
-  name: '',
-  email: '',
-  phone: '',
-  address: '',
-  emergencyContact: '',
-  joinedDate: new Date().toISOString().split('T')[0],
-};
+import { useLocale } from '../contexts/LocaleContext';
 
 export default function MemberForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
   const fileInputRef = useRef(null);
+  const { getTodayDateInputValue, toDateInputValue } = useLocale();
 
-  const [formData, setFormData] = useState(initialFormData);
+  const [formData, setFormData] = useState(() => ({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    emergencyContact: '',
+    joinedDate: getTodayDateInputValue(),
+  }));
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
@@ -58,9 +58,7 @@ export default function MemberForm() {
         phone: data.phone || '',
         address: data.address || '',
         emergencyContact: data.emergency_contact || '',
-        joinedDate: data.joined_date
-          ? data.joined_date.split('T')[0]
-          : '',
+        joinedDate: toDateInputValue(data.joined_date),
       });
       if (data.photo_url) {
         setExistingPhotoUrl(data.photo_url);

@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const { db, getSetting } = require('../db');
+const { addMonthsToDateString, diffWholeMonths, getTodayDateString } = require('../date-utils');
 
 // Multer configuration
 const storage = multer.diskStorage({
@@ -96,7 +97,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/loans - create new loan application
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { member_id, amount, interest_rate, term_months, start_date, purpose, penalty_rate } = req.body;
 
@@ -114,9 +115,7 @@ router.post('/', (req, res) => {
     const total_interest = Math.round((total_amount - amount) * 100) / 100;
 
     // Calculate end date
-    const startDt = new Date(start_date);
-    startDt.setMonth(startDt.getMonth() + term_months);
-    const end_date = startDt.toISOString().split('T')[0];
+    const end_date = await addMonthsToDateString(start_date, term_months);
 
     const defaultPenaltyRate = getSetting('default_penalty_rate') || '2';
 
@@ -139,7 +138,7 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/loans/:id - update loan
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, interest_rate, term_months, start_date, purpose, penalty_rate, status } = req.body;
@@ -158,9 +157,7 @@ router.put('/:id', (req, res) => {
     const total_amount = Math.round(monthly_payment * newTerm * 100) / 100;
     const total_interest = Math.round((total_amount - newAmount) * 100) / 100;
 
-    const startDt = new Date(newStart);
-    startDt.setMonth(startDt.getMonth() + newTerm);
-    const end_date = startDt.toISOString().split('T')[0];
+    const end_date = await addMonthsToDateString(newStart, newTerm);
 
     db.prepare(`
       UPDATE loans SET amount = ?, interest_rate = ?, term_months = ?, start_date = ?,
@@ -185,7 +182,7 @@ router.put('/:id', (req, res) => {
 });
 
 // PUT /api/loans/:id/approve - approve loan
-router.put('/:id/approve', (req, res) => {
+router.put('/:id/approve', async (req, res) => {
   try {
     const { id } = req.params;
     const { approved_by } = req.body;
@@ -199,7 +196,7 @@ router.put('/:id/approve', (req, res) => {
       return res.status(400).json({ error: 'Only pending loans can be approved' });
     }
 
-    const approved_date = new Date().toISOString().split('T')[0];
+    const approved_date = await getTodayDateString(loan.start_date);
 
     db.prepare(`
       UPDATE loans SET status = 'active', approved_date = ?, approved_by = ?
@@ -235,7 +232,7 @@ router.put('/:id/complete', (req, res) => {
 });
 
 // POST /api/loans/:id/repayment - add repayment
-router.post('/:id/repayment', (req, res) => {
+router.post('/:id/repayment', async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, date, notes } = req.body;
@@ -277,14 +274,10 @@ router.post('/:id/repayment', (req, res) => {
       'SELECT date FROM loan_repayments WHERE loan_id = ? ORDER BY date DESC LIMIT 1'
     ).get(id);
 
-    const loanStartDate = new Date(loan.approved_date || loan.start_date);
-    const paymentDate = new Date(date);
-    const lastPaymentDate = lastRepayment ? new Date(lastRepayment.date) : loanStartDate;
+    const lastPaymentDate = lastRepayment ? lastRepayment.date : (loan.approved_date || loan.start_date);
 
-    // Calculate months since last payment
-    const monthsSinceLastPayment =
-      (paymentDate.getFullYear() - lastPaymentDate.getFullYear()) * 12 +
-      (paymentDate.getMonth() - lastPaymentDate.getMonth());
+    // Calculate whole months since the last recorded payment date.
+    const monthsSinceLastPayment = diffWholeMonths(lastPaymentDate, date);
 
     if (monthsSinceLastPayment > 1) {
       // Overdue: apply penalty on overdue months
@@ -318,7 +311,7 @@ router.post('/:id/repayment', (req, res) => {
 });
 
 // GET /api/loans/:id/schedule - generate amortization schedule
-router.get('/:id/schedule', (req, res) => {
+router.get('/:id/schedule', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -330,7 +323,7 @@ router.get('/:id/schedule', (req, res) => {
     const schedule = [];
     const monthlyRate = loan.interest_rate / 12 / 100;
     let balance = loan.amount;
-    const startDate = new Date(loan.approved_date || loan.start_date);
+    const baseDate = loan.approved_date || loan.start_date;
 
     for (let i = 1; i <= loan.term_months; i++) {
       const interestPayment = Math.round(balance * monthlyRate * 100) / 100;
@@ -342,12 +335,9 @@ router.get('/:id/schedule', (req, res) => {
         balance = 0;
       }
 
-      const dueDate = new Date(startDate);
-      dueDate.setMonth(dueDate.getMonth() + i);
-
       schedule.push({
         month: i,
-        due_date: dueDate.toISOString().split('T')[0],
+        due_date: await addMonthsToDateString(baseDate, i),
         payment: loan.monthly_payment,
         principal: principalPayment,
         interest: interestPayment,
@@ -401,7 +391,7 @@ router.post('/:id/documents', upload.single('document'), (req, res) => {
 });
 
 // GET /api/loans/:id/penalty-check - check for overdue payments and calculate penalties
-router.get('/:id/penalty-check', (req, res) => {
+router.get('/:id/penalty-check', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -426,11 +416,9 @@ router.get('/:id/penalty-check', (req, res) => {
     const repaymentCount = repayments.length;
 
     // Determine how many payments should have been made by now
-    const loanStart = new Date(loan.approved_date || loan.start_date);
-    const now = new Date();
+    const today = await getTodayDateString(loan.approved_date || loan.start_date);
     const expectedPayments = Math.floor(
-      (now.getFullYear() - loanStart.getFullYear()) * 12 +
-      (now.getMonth() - loanStart.getMonth())
+      diffWholeMonths(loan.approved_date || loan.start_date, today)
     );
 
     const missedPayments = Math.max(0, expectedPayments - repaymentCount);

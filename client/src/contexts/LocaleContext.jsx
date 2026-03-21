@@ -1,13 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { t as translate, formatCurrency as formatCurrencyUtil, formatNumber as formatNumberUtil } from '../utils/localization';
+import { ADtoBS, BStoAD, NepaliDate } from 'nepali-date-library';
 
 const LocaleContext = createContext(null);
-
-// Nepali month names for BS calendar display
-const nepaliMonths = [
-  'बैशाख', 'जेठ', 'असार', 'श्रावण', 'भदौ', 'असोज',
-  'कार्तिक', 'मंसिर', 'पुष', 'माघ', 'फाल्गुन', 'चैत्र'
-];
 
 const englishMonths = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -21,113 +16,54 @@ function toNepaliNumerals(str) {
   return String(str).replace(/[0-9]/g, (d) => nepaliNumerals[parseInt(d, 10)]);
 }
 
-/**
- * Simple AD to BS date conversion.
- * Uses a lookup-based approach for years 2000-2090 BS (approx 1943-2034 AD).
- * Each entry contains the total days in each BS month for that year.
- */
-const bsMonthDays = {
-  2070: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-  2071: [31, 31, 32, 31, 32, 30, 30, 29, 30, 29, 30, 30],
-  2072: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
-  2073: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-  2074: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
-  2075: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
-  2076: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
-  2077: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-  2078: [31, 31, 32, 31, 32, 30, 30, 29, 30, 29, 30, 30],
-  2079: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
-  2080: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
-  2081: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
-  2082: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
-  2083: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-  2084: [31, 31, 32, 31, 32, 30, 30, 29, 30, 29, 30, 30],
-  2085: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
-  2086: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
-  2087: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
-  2088: [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
-  2089: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
-  2090: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
-};
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-// Reference date: 2070/01/01 BS = 2013/04/14 AD
-const bsRefYear = 2070;
-const bsRefMonth = 1;
-const bsRefDay = 1;
-const adRefDate = new Date(2013, 3, 14); // April 14, 2013
-
-/**
- * Convert AD date to BS date.
- * Returns { year, month, day } in BS or null if out of range.
- */
-function adToBS(adDate) {
-  const date = new Date(adDate);
-  date.setHours(0, 0, 0, 0);
-
-  let daysDiff = Math.floor((date - adRefDate) / (1000 * 60 * 60 * 24));
-
-  let bsYear = bsRefYear;
-  let bsMonth = bsRefMonth;
-  let bsDay = bsRefDay;
-
-  if (daysDiff >= 0) {
-    // Forward from reference
-    while (daysDiff > 0) {
-      const monthDays = bsMonthDays[bsYear];
-      if (!monthDays) {
-        // Out of range, return approximate
-        return null;
-      }
-      const daysInMonth = monthDays[bsMonth - 1];
-      const daysRemaining = daysInMonth - bsDay;
-
-      if (daysDiff <= daysRemaining) {
-        bsDay += daysDiff;
-        daysDiff = 0;
-      } else {
-        daysDiff -= (daysRemaining + 1);
-        bsMonth++;
-        bsDay = 1;
-        if (bsMonth > 12) {
-          bsMonth = 1;
-          bsYear++;
-        }
-      }
-    }
-  } else {
-    // Before reference date
-    daysDiff = Math.abs(daysDiff);
-    while (daysDiff > 0) {
-      bsDay--;
-      if (bsDay === 0) {
-        bsMonth--;
-        if (bsMonth === 0) {
-          bsMonth = 12;
-          bsYear--;
-        }
-        const monthDays = bsMonthDays[bsYear];
-        if (!monthDays) return null;
-        bsDay = monthDays[bsMonth - 1];
-      }
-      daysDiff--;
-    }
-  }
-
-  return { year: bsYear, month: bsMonth, day: bsDay };
+function normalizeTheme(value) {
+  return value === 'dark' ? 'dark' : 'light';
 }
 
-/**
- * Format a BS date object into a readable string.
- */
-function formatBSDate(bsDate, lang) {
-  if (!bsDate) return '';
-  const { year, month, day } = bsDate;
-  const monthName = nepaliMonths[month - 1];
+function applyThemeToDocument(theme) {
+  if (typeof document === 'undefined') return;
 
-  if (lang === 'ne') {
-    return `${toNepaliNumerals(day)} ${monthName} ${toNepaliNumerals(year)}`;
+  const root = document.documentElement;
+  root.classList.toggle('dark', theme === 'dark');
+  root.dataset.theme = theme;
+  root.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+}
+
+function toAdDateInputValue(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function normalizeDateOnlyValue(value) {
+  return String(value).trim().slice(0, 10);
+}
+
+function isLikelyBsDate(dateStr) {
+  if (!DATE_ONLY_PATTERN.test(dateStr)) return false;
+
+  const [year] = dateStr.split('-').map(Number);
+  const currentAdYear = new Date().getFullYear();
+
+  if (year < currentAdYear + 30 || year > currentAdYear + 90) {
+    return false;
   }
-  return `${day} ${monthName} ${year}`;
+
+  try {
+    new NepaliDate(dateStr);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function formatBSDate(dateStr, lang) {
+  try {
+    const bsDate = new NepaliDate(dateStr);
+    return bsDate.format(lang === 'ne' ? 'd mmmm yyyy' : 'D MMMM YYYY');
+  } catch {
+    return dateStr;
+  }
 }
 
 /**
@@ -154,8 +90,16 @@ export function LocaleProvider({ children }) {
     return localStorage.getItem('app_calendar') || 'AD';
   });
 
+  const [theme, setThemeState] = useState(() => {
+    return normalizeTheme(localStorage.getItem('app_theme'));
+  });
+
   const [currency, setCurrency] = useState('NPR');
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  useEffect(() => {
+    applyThemeToDocument(theme);
+  }, [theme]);
 
   // Fetch settings from API on mount
   useEffect(() => {
@@ -171,6 +115,11 @@ export function LocaleProvider({ children }) {
           if (settings.calendar) {
             setCalendarState(settings.calendar);
             localStorage.setItem('app_calendar', settings.calendar);
+          }
+          if (settings.theme) {
+            const normalizedTheme = normalizeTheme(settings.theme);
+            setThemeState(normalizedTheme);
+            localStorage.setItem('app_theme', normalizedTheme);
           }
           if (settings.currency) {
             setCurrency(settings.currency);
@@ -197,28 +146,73 @@ export function LocaleProvider({ children }) {
     localStorage.setItem('app_calendar', cal);
   }, []);
 
+  const setTheme = useCallback((nextTheme) => {
+    const resolvedTheme = normalizeTheme(nextTheme);
+    setThemeState(resolvedTheme);
+    localStorage.setItem('app_theme', resolvedTheme);
+    applyThemeToDocument(resolvedTheme);
+  }, []);
+
+  const toDateInputValue = useCallback((value) => {
+    if (!value) return '';
+
+    const normalizedValue = normalizeDateOnlyValue(value);
+    if (isLikelyBsDate(normalizedValue)) {
+      return normalizedValue;
+    }
+
+    const adDate = new Date(value);
+    if (isNaN(adDate.getTime())) {
+      return normalizedValue;
+    }
+
+    return toAdDateInputValue(adDate);
+  }, []);
+
+  const getTodayDateInputValue = useCallback(() => {
+    const todayAd = toAdDateInputValue(new Date());
+    if (calendar === 'BS') {
+      return ADtoBS(todayAd);
+    }
+    return todayAd;
+  }, [calendar]);
+
   // Translation function bound to current language
   const t = useCallback((key) => {
     return translate(key, language);
   }, [language]);
 
   // Format date using current calendar and language settings
-  const formatDate = useCallback((dateStr) => {
-    if (!dateStr) return '';
+  const formatDate = useCallback((value) => {
+    if (!value) return '';
 
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return dateStr;
-
-    if (calendar === 'BS') {
-      const bsDate = adToBS(date);
-      if (bsDate) {
-        return formatBSDate(bsDate, language);
-      }
-      // Fall back to AD if BS conversion fails (out of range)
-      return formatADDate(date, language);
+    if (value instanceof Date) {
+      const adValue = toAdDateInputValue(value);
+      return calendar === 'BS' ? formatBSDate(ADtoBS(adValue), language) : formatADDate(value, language);
     }
 
-    return formatADDate(date, language);
+    const normalizedValue = normalizeDateOnlyValue(value);
+
+    if (isLikelyBsDate(normalizedValue)) {
+      if (calendar === 'BS') {
+        return formatBSDate(normalizedValue, language);
+      }
+
+      try {
+        return formatADDate(BStoAD(normalizedValue), language);
+      } catch {
+        return normalizedValue;
+      }
+    }
+
+    const adDate = new Date(value);
+    if (isNaN(adDate.getTime())) return String(value);
+
+    if (calendar === 'BS') {
+      return formatBSDate(ADtoBS(toAdDateInputValue(adDate)), language);
+    }
+
+    return formatADDate(adDate, language);
   }, [calendar, language]);
 
   // Format currency using current language and currency settings
@@ -236,10 +230,14 @@ export function LocaleProvider({ children }) {
     setLanguage,
     calendar,
     setCalendar,
+    theme,
+    setTheme,
     currency,
     setCurrency,
     t,
     formatDate,
+    toDateInputValue,
+    getTodayDateInputValue,
     formatCurrency,
     formatNumber,
     settingsLoaded,

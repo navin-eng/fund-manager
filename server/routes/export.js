@@ -2,71 +2,7 @@ const express = require('express');
 const router = express.Router();
 const XLSX = require('xlsx');
 const { db } = require('../db');
-
-// Helper: get date range based on period and reference date
-function getDateRange(period, refDate) {
-  const date = new Date(refDate || new Date().toISOString().split('T')[0]);
-  let start, end;
-
-  switch (period) {
-    case 'daily':
-      start = new Date(date);
-      end = new Date(date);
-      break;
-    case 'weekly': {
-      const dayOfWeek = date.getDay();
-      start = new Date(date);
-      start.setDate(date.getDate() - dayOfWeek);
-      end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      break;
-    }
-    case 'fortnightly': {
-      const dayOfMonth = date.getDate();
-      start = new Date(date);
-      if (dayOfMonth <= 15) {
-        start.setDate(1);
-        end = new Date(date);
-        end.setDate(15);
-      } else {
-        start.setDate(16);
-        end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      }
-      break;
-    }
-    case 'monthly':
-      start = new Date(date.getFullYear(), date.getMonth(), 1);
-      end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      break;
-    case 'trimester': {
-      const trimester = Math.floor(date.getMonth() / 4);
-      start = new Date(date.getFullYear(), trimester * 4, 1);
-      end = new Date(date.getFullYear(), trimester * 4 + 4, 0);
-      break;
-    }
-    case 'semi-annual':
-      if (date.getMonth() < 6) {
-        start = new Date(date.getFullYear(), 0, 1);
-        end = new Date(date.getFullYear(), 5, 30);
-      } else {
-        start = new Date(date.getFullYear(), 6, 1);
-        end = new Date(date.getFullYear(), 11, 31);
-      }
-      break;
-    case 'yearly':
-      start = new Date(date.getFullYear(), 0, 1);
-      end = new Date(date.getFullYear(), 11, 31);
-      break;
-    default:
-      start = new Date(date.getFullYear(), date.getMonth(), 1);
-      end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-  }
-
-  return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
-  };
-}
+const { addMonthsToDateString, getDateRange } = require('../date-utils');
 
 // Helper: format date for filenames
 function fileDate() {
@@ -247,10 +183,10 @@ router.get('/loans', (req, res) => {
 });
 
 // GET /api/export/report - Export full report with multiple sheets
-router.get('/report', (req, res) => {
+router.get('/report', async (req, res) => {
   try {
     const { period, date } = req.query;
-    const range = getDateRange(period || 'monthly', date);
+    const range = await getDateRange(period || 'monthly', date);
     const wb = XLSX.utils.book_new();
 
     // --- Summary Sheet ---
@@ -546,7 +482,7 @@ router.get('/member-statement/:id', (req, res) => {
 });
 
 // GET /api/export/amortization/:loanId - Export loan amortization schedule
-router.get('/amortization/:loanId', (req, res) => {
+router.get('/amortization/:loanId', async (req, res) => {
   try {
     const { loanId } = req.params;
 
@@ -586,7 +522,7 @@ router.get('/amortization/:loanId', (req, res) => {
     const schedule = [];
     const monthlyRate = loan.interest_rate / 12 / 100;
     let balance = loan.amount;
-    const startDate = new Date(loan.approved_date || loan.start_date);
+    const baseDate = loan.approved_date || loan.start_date;
 
     for (let i = 1; i <= loan.term_months; i++) {
       const interestPayment = Math.round(balance * monthlyRate * 100) / 100;
@@ -597,12 +533,9 @@ router.get('/amortization/:loanId', (req, res) => {
         balance = 0;
       }
 
-      const dueDate = new Date(startDate);
-      dueDate.setMonth(dueDate.getMonth() + i);
-
       schedule.push({
         'Month': i,
-        'Due Date': dueDate.toISOString().split('T')[0],
+        'Due Date': await addMonthsToDateString(baseDate, i),
         'Payment': loan.monthly_payment,
         'Principal': principalPayment,
         'Interest': interestPayment,

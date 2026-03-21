@@ -13,9 +13,7 @@ import {
   ArrowDownCircle,
   History,
   Globe,
-  Languages,
   Mail,
-  Send,
 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
 
@@ -52,7 +50,7 @@ const MONTHS = [
 
 // formatDate is now handled inside the component using useLocale
 
-function getFiscalYearDisplay(startMonth, startDay) {
+function getFiscalYearDisplay(startMonth, startDay, formatDate) {
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -105,7 +103,15 @@ const selectClasses =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors';
 
 export default function Settings() {
-  const { formatDate, formatCurrency, setCalendar, setLanguage } = useLocale();
+  const {
+    formatDate,
+    formatCurrency,
+    setCalendar,
+    setLanguage,
+    theme: currentTheme,
+    setTheme,
+    getTodayDateInputValue,
+  } = useLocale();
 
   const [settings, setSettings] = useState({
     organization_name: '',
@@ -118,6 +124,7 @@ export default function Settings() {
     fiscal_year_start_day: '01',
     calendar: 'AD',
     language: 'en',
+    theme: currentTheme || 'light',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -130,7 +137,7 @@ export default function Settings() {
     amount: '',
     type: 'credit',
     reason: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayDateInputValue(),
   });
   const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
   const [adjustmentMessage, setAdjustmentMessage] = useState(null);
@@ -153,6 +160,7 @@ export default function Settings() {
           fiscal_year_start_day: data.fiscal_year_start_day ?? '01',
           calendar: data.calendar || data.calendar_system || 'AD',
           language: data.language || 'en',
+          theme: data.theme || currentTheme || 'light',
         });
       } catch (err) {
         setMessage({ type: 'error', text: err.message });
@@ -203,6 +211,7 @@ export default function Settings() {
       }
       if (settings.calendar) setCalendar(settings.calendar);
       if (settings.language) setLanguage(settings.language);
+      if (settings.theme) setTheme(settings.theme);
       setMessage({ type: 'success', text: 'Settings saved successfully' });
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
@@ -239,7 +248,7 @@ export default function Settings() {
         amount: '',
         type: 'credit',
         reason: '',
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayDateInputValue(),
       });
       fetchAdjustments();
     } catch (err) {
@@ -344,6 +353,26 @@ export default function Settings() {
           )}
         </SectionCard>
 
+        <SectionCard icon={SettingsIcon} title="Appearance">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <InputField label="Theme">
+              <select
+                value={settings.theme}
+                onChange={(e) => handleChange('theme', e.target.value)}
+                className={selectClasses}
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </InputField>
+          </div>
+          <div className="mt-4 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3">
+            <p className="text-sm text-slate-600">
+              Choose the interface theme used across the dashboard, navigation, and forms.
+            </p>
+          </div>
+        </SectionCard>
+
         {/* Financial Settings */}
         <SectionCard icon={DollarSign} title="Financial Settings">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -432,7 +461,7 @@ export default function Settings() {
           <div className="mt-4 rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3">
             <p className="text-xs text-indigo-500 uppercase tracking-wider font-medium">Current Fiscal Year</p>
             <p className="mt-1 text-sm font-semibold text-indigo-800">
-              {getFiscalYearDisplay(settings.fiscal_year_start, settings.fiscal_year_start_day)}
+              {getFiscalYearDisplay(settings.fiscal_year_start, settings.fiscal_year_start_day, formatDate)}
             </p>
           </div>
         </SectionCard>

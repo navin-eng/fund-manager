@@ -19,6 +19,23 @@ import {
 
 const PAGE_SIZE = 15;
 
+function calculateSummary(transactions) {
+  return transactions.reduce(
+    (acc, txn) => {
+      const amount = Number(txn.amount || 0);
+      if (txn.type === 'deposit') {
+        acc.totalDeposits += amount;
+        acc.netSavings += amount;
+      } else if (txn.type === 'withdrawal') {
+        acc.totalWithdrawals += amount;
+        acc.netSavings -= amount;
+      }
+      return acc;
+    },
+    { totalDeposits: 0, totalWithdrawals: 0, netSavings: 0 }
+  );
+}
+
 export default function SavingsList() {
   const { formatDate, formatCurrency } = useLocale();
   const [savings, setSavings] = useState([]);
@@ -65,27 +82,21 @@ export default function SavingsList() {
       setLoading(true);
       try {
         const params = new URLSearchParams();
-        if (appliedFilters.memberId) params.append('memberId', appliedFilters.memberId);
-        if (appliedFilters.dateFrom) params.append('dateFrom', appliedFilters.dateFrom);
-        if (appliedFilters.dateTo) params.append('dateTo', appliedFilters.dateTo);
+        if (appliedFilters.memberId) params.append('member_id', appliedFilters.memberId);
+        if (appliedFilters.dateFrom) params.append('date_from', appliedFilters.dateFrom);
+        if (appliedFilters.dateTo) params.append('date_to', appliedFilters.dateTo);
         if (appliedFilters.type) params.append('type', appliedFilters.type);
 
         const qs = params.toString() ? `?${params.toString()}` : '';
 
-        const [savingsRes, summaryRes] = await Promise.all([
-          fetch(`/api/savings${qs}`),
-          fetch(`/api/savings/summary${qs}`),
-        ]);
-
+        const savingsRes = await fetch(`/api/savings${qs}`);
+        if (!savingsRes.ok) {
+          throw new Error('Failed to fetch savings');
+        }
         const savingsData = await savingsRes.json();
-        const summaryData = await summaryRes.json();
 
         setSavings(savingsData);
-        setSummary({
-          totalDeposits: summaryData.totalDeposits || 0,
-          totalWithdrawals: summaryData.totalWithdrawals || 0,
-          netSavings: summaryData.netSavings || 0,
-        });
+        setSummary(calculateSummary(Array.isArray(savingsData) ? savingsData : []));
       } catch (err) {
         console.error('Failed to fetch savings:', err);
       } finally {
@@ -116,20 +127,10 @@ export default function SavingsList() {
     try {
       const response = await fetch(`/api/savings/${id}`, { method: 'DELETE' });
       if (response.ok) {
-        setSavings((prev) => prev.filter((s) => s._id !== id));
-        // Re-fetch summary
-        const params = new URLSearchParams();
-        if (appliedFilters.memberId) params.append('memberId', appliedFilters.memberId);
-        if (appliedFilters.dateFrom) params.append('dateFrom', appliedFilters.dateFrom);
-        if (appliedFilters.dateTo) params.append('dateTo', appliedFilters.dateTo);
-        if (appliedFilters.type) params.append('type', appliedFilters.type);
-        const qs = params.toString() ? `?${params.toString()}` : '';
-        const summaryRes = await fetch(`/api/savings/summary${qs}`);
-        const summaryData = await summaryRes.json();
-        setSummary({
-          totalDeposits: summaryData.totalDeposits || 0,
-          totalWithdrawals: summaryData.totalWithdrawals || 0,
-          netSavings: summaryData.netSavings || 0,
+        setSavings((prev) => {
+          const next = prev.filter((transaction) => transaction.id !== id && transaction._id !== id);
+          setSummary(calculateSummary(next));
+          return next;
         });
       }
     } catch (err) {
@@ -256,8 +257,8 @@ export default function SavingsList() {
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
               <option value="">All</option>
-              <option value="Deposit">Deposit</option>
-              <option value="Withdrawal">Withdrawal</option>
+              <option value="deposit">Deposit</option>
+              <option value="withdrawal">Withdrawal</option>
             </select>
           </div>
         </div>
@@ -307,10 +308,10 @@ export default function SavingsList() {
                         {formatDate(txn.date)}
                       </td>
                       <td className="px-5 py-3 text-slate-700 font-medium">
-                        {txn.member?.name || txn.memberName || '—'}
+                        {txn.member?.name || txn.member_name || txn.memberName || '—'}
                       </td>
                       <td className="px-5 py-3">
-                        {txn.type === 'Deposit' ? (
+                        {txn.type === 'deposit' ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                             <ArrowUpCircle className="w-3 h-3" />
                             Deposit

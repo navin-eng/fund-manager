@@ -1,79 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
-
-// Helper: get date range based on period and reference date
-function getDateRange(period, refDate) {
-  const date = new Date(refDate || new Date().toISOString().split('T')[0]);
-  let start, end;
-
-  switch (period) {
-    case 'daily':
-      start = new Date(date);
-      end = new Date(date);
-      break;
-    case 'weekly': {
-      const dayOfWeek = date.getDay();
-      start = new Date(date);
-      start.setDate(date.getDate() - dayOfWeek);
-      end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      break;
-    }
-    case 'fortnightly': {
-      const dayOfMonth = date.getDate();
-      start = new Date(date);
-      if (dayOfMonth <= 15) {
-        start.setDate(1);
-        end = new Date(date);
-        end.setDate(15);
-      } else {
-        start.setDate(16);
-        end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      }
-      break;
-    }
-    case 'monthly':
-      start = new Date(date.getFullYear(), date.getMonth(), 1);
-      end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      break;
-    case 'trimester':
-      // 4-month periods: Jan-Apr, May-Aug, Sep-Dec
-      {
-        const trimester = Math.floor(date.getMonth() / 4);
-        start = new Date(date.getFullYear(), trimester * 4, 1);
-        end = new Date(date.getFullYear(), trimester * 4 + 4, 0);
-      }
-      break;
-    case 'semi-annual':
-      if (date.getMonth() < 6) {
-        start = new Date(date.getFullYear(), 0, 1);
-        end = new Date(date.getFullYear(), 5, 30);
-      } else {
-        start = new Date(date.getFullYear(), 6, 1);
-        end = new Date(date.getFullYear(), 11, 31);
-      }
-      break;
-    case 'yearly':
-      start = new Date(date.getFullYear(), 0, 1);
-      end = new Date(date.getFullYear(), 11, 31);
-      break;
-    default:
-      start = new Date(date.getFullYear(), date.getMonth(), 1);
-      end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-  }
-
-  return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
-  };
-}
+const { diffWholeMonths, getDateRange, getTodayDateString } = require('../date-utils');
 
 // GET /api/reports/summary
-router.get('/summary', (req, res) => {
+router.get('/summary', async (req, res) => {
   try {
     const { period, date } = req.query;
-    const range = getDateRange(period || 'monthly', date);
+    const range = await getDateRange(period || 'monthly', date);
 
     const totalSavings = db.prepare(
       "SELECT COALESCE(SUM(CASE WHEN type='deposit' THEN amount ELSE -amount END), 0) AS total FROM savings WHERE date BETWEEN ? AND ?"
@@ -149,10 +83,10 @@ router.get('/summary', (req, res) => {
 });
 
 // GET /api/reports/member-savings - savings by member for period
-router.get('/member-savings', (req, res) => {
+router.get('/member-savings', async (req, res) => {
   try {
     const { period, date } = req.query;
-    const range = getDateRange(period || 'monthly', date);
+    const range = await getDateRange(period || 'monthly', date);
 
     const memberSavings = db.prepare(`
       SELECT
@@ -212,10 +146,10 @@ router.get('/loan-portfolio', (req, res) => {
 });
 
 // GET /api/reports/income-statement - interest income, penalties, expenses for period
-router.get('/income-statement', (req, res) => {
+router.get('/income-statement', async (req, res) => {
   try {
     const { period, date } = req.query;
-    const range = getDateRange(period || 'monthly', date);
+    const range = await getDateRange(period || 'monthly', date);
 
     const interestIncome = db.prepare(
       'SELECT COALESCE(SUM(interest), 0) AS total FROM loan_repayments WHERE date BETWEEN ? AND ?'
@@ -312,7 +246,7 @@ router.get('/balance-sheet', (req, res) => {
 });
 
 // GET /api/reports/overdue-loans - list of overdue loans with penalty amounts
-router.get('/overdue-loans', (req, res) => {
+router.get('/overdue-loans', async (req, res) => {
   try {
     const activeLoans = db.prepare(`
       SELECT l.*, m.name AS member_name,
@@ -323,14 +257,12 @@ router.get('/overdue-loans', (req, res) => {
       WHERE l.status = 'active'
     `).all();
 
-    const now = new Date();
+    const today = await getTodayDateString(activeLoans[0]?.approved_date || activeLoans[0]?.start_date);
     const overdueLoans = [];
 
     for (const loan of activeLoans) {
-      const loanStart = new Date(loan.approved_date || loan.start_date);
       const expectedPayments = Math.floor(
-        (now.getFullYear() - loanStart.getFullYear()) * 12 +
-        (now.getMonth() - loanStart.getMonth())
+        diffWholeMonths(loan.approved_date || loan.start_date, today)
       );
 
       const missedPayments = Math.max(0, expectedPayments - loan.repayment_count);

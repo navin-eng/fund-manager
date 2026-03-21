@@ -48,6 +48,7 @@ function App() {
               <Route path="/members/:id/edit" element={<MemberForm />} />
               <Route path="/savings" element={<SavingsList />} />
               <Route path="/savings/new" element={<SavingsForm />} />
+              <Route path="/savings/:id/edit" element={<SavingsForm />} />
               <Route path="/savings/bulk" element={<BulkSavingsForm />} />
               <Route path="/loans" element={<LoanList />} />
               <Route path="/loans/new" element={<LoanForm />} />

@@ -198,7 +198,7 @@ export default function MemberDetail() {
                 Joined Date
               </p>
               <p className="text-sm font-medium text-slate-800">
-                {formatDate(member.joined_date || member.createdAt)}
+                {formatDate(member.joinedDate || member.createdAt)}
               </p>
             </div>
           </div>

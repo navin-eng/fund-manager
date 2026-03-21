@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Banknote,
   Percent,
@@ -38,20 +38,22 @@ function calculateEMI(principal, annualRate, termMonths) {
 }
 
 export default function LoanForm() {
-  const { formatCurrency } = useLocale();
+  const { formatCurrency, getTodayDateInputValue } = useLocale();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedMemberId = searchParams.get('member') || '';
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState(null);
 
   const [form, setForm] = useState({
-    member_id: '',
+    member_id: preselectedMemberId,
     amount: '',
     interest_rate: '',
     term: '',
     purpose: '',
-    start_date: new Date().toISOString().split('T')[0],
+    start_date: getTodayDateInputValue(),
   });
 
   const [errors, setErrors] = useState({});
@@ -130,7 +132,7 @@ export default function LoanForm() {
         member_id: Number(form.member_id),
         amount: Number(form.amount),
         interest_rate: Number(form.interest_rate),
-        term: Number(form.term),
+        term_months: Number(form.term),
         purpose: form.purpose.trim() || undefined,
         start_date: form.start_date,
       };

@@ -25,8 +25,12 @@ import {
   Legend,
 } from 'recharts';
 import StatCard from '../components/StatCard';
-import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
+import {
+  normalizeBalanceSheet,
+  normalizeLoan,
+  normalizeReportSummary,
+} from '../utils/apiTransforms';
 
 const PIE_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
 
@@ -54,11 +58,72 @@ function SkeletonChart() {
   );
 }
 
+function buildMonthlySavingsData(transactions) {
+  const byKey = new Map();
+
+  for (const transaction of transactions) {
+    if (transaction.type !== 'deposit') continue;
+    const key = String(transaction.date || '').slice(0, 7);
+    if (!key) continue;
+
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        month: key,
+        amount: 0,
+      });
+    }
+
+    byKey.get(key).amount += Number(transaction.amount || 0);
+  }
+
+  return Array.from(byKey.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(-6)
+    .map(([, value]) => value);
+}
+
+function buildLoanStatusData(loans) {
+  const counts = loans.reduce((acc, loan) => {
+    const status = loan.status || 'unknown';
+    acc.set(status, (acc.get(status) || 0) + 1);
+    return acc;
+  }, new Map());
+
+  return Array.from(counts.entries()).map(([name, value]) => ({ name, value }));
+}
+
+function buildRecentActivity(transactions, loans) {
+  const savingsActivity = transactions.map((transaction) => ({
+    id: `saving-${transaction.id}`,
+    type: transaction.type,
+    amount: Number(transaction.amount || 0),
+    date: transaction.date,
+    description: `${transaction.member_name || 'Member'} ${transaction.type === 'deposit' ? 'deposit' : 'withdrawal'}`,
+  }));
+
+  const loanActivity = loans
+    .filter((loan) => loan.approvedDate || loan.startDate)
+    .map((loan) => ({
+      id: `loan-${loan.id}`,
+      type: 'loan',
+      amount: Number(loan.amount || 0),
+      date: loan.approvedDate || loan.startDate,
+      description: `Loan issued to ${loan.memberName || 'member'}`,
+    }));
+
+  return [...savingsActivity, ...loanActivity]
+    .sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')))
+    .slice(0, 10);
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { formatDate, formatCurrency: localeFormatCurrency } = useLocale();
   const [summary, setSummary] = useState(null);
   const [balanceSheet, setBalanceSheet] = useState(null);
+  const [monthlySavingsData, setMonthlySavingsData] = useState([]);
+  const [loanStatusData, setLoanStatusData] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -66,21 +131,38 @@ export default function Dashboard() {
     async function fetchData() {
       try {
         setLoading(true);
-        const [summaryRes, balanceRes] = await Promise.all([
+        setError(null);
+        const [summaryRes, balanceRes, savingsRes, loansRes] = await Promise.all([
           fetch('/api/reports/summary?period=monthly'),
           fetch('/api/reports/balance-sheet'),
+          fetch('/api/savings'),
+          fetch('/api/loans'),
         ]);
 
-        if (summaryRes.ok) {
-          const summaryData = await summaryRes.json();
-          setSummary(summaryData);
+        if (!summaryRes.ok || !balanceRes.ok || !savingsRes.ok || !loansRes.ok) {
+          throw new Error('Failed to load dashboard data');
         }
 
-        if (balanceRes.ok) {
-          const balanceData = await balanceRes.json();
-          setBalanceSheet(balanceData);
-        }
-      } catch (err) {
+        const [summaryData, balanceData, savingsData, loansData] = await Promise.all([
+          summaryRes.json(),
+          balanceRes.json(),
+          savingsRes.json(),
+          loansRes.json(),
+        ]);
+
+        const normalizedSummary = normalizeReportSummary(summaryData);
+        const normalizedBalanceSheet = normalizeBalanceSheet(balanceData);
+        const transactions = Array.isArray(savingsData) ? savingsData : [];
+        const normalizedLoans = Array.isArray(loansData)
+          ? loansData.map(normalizeLoan).filter(Boolean)
+          : [];
+
+        setSummary(normalizedSummary);
+        setBalanceSheet(normalizedBalanceSheet);
+        setMonthlySavingsData(buildMonthlySavingsData(transactions));
+        setLoanStatusData(buildLoanStatusData(normalizedLoans));
+        setRecentActivity(buildRecentActivity(transactions, normalizedLoans));
+      } catch {
         setError('Failed to load dashboard data. Please try again later.');
       } finally {
         setLoading(false);
@@ -90,14 +172,10 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  const totalFund = summary?.totalFund ?? balanceSheet?.totalAssets ?? 0;
-  const totalMembers = summary?.totalMembers ?? 0;
+  const totalFund = summary?.netFundBalance ?? balanceSheet?.fundBalance ?? 0;
+  const totalMembers = summary?.memberCount ?? 0;
   const activeLoans = summary?.activeLoans ?? 0;
-  const monthlySavings = summary?.monthlySavings ?? 0;
-
-  const monthlySavingsData = summary?.monthlySavingsHistory ?? [];
-  const loanStatusData = summary?.loanStatusDistribution ?? [];
-  const recentActivity = summary?.recentTransactions ?? [];
+  const monthlySavings = summary?.totalSavings ?? 0;
 
   if (loading) {
     return (
@@ -135,34 +213,26 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Fund Balance"
-          value={`Rs ${totalFund.toLocaleString()}`}
+          value={localeFormatCurrency(totalFund)}
           icon={Wallet}
-          trend={summary?.fundTrend}
-          trendLabel="vs last month"
           color="indigo"
         />
         <StatCard
           title="Total Members"
-          value={totalMembers}
+          value={totalMembers.toLocaleString()}
           icon={Users}
-          trend={summary?.memberTrend}
-          trendLabel="vs last month"
           color="emerald"
         />
         <StatCard
           title="Active Loans"
-          value={activeLoans}
+          value={activeLoans.toLocaleString()}
           icon={Landmark}
-          trend={summary?.loanTrend}
-          trendLabel="vs last month"
           color="amber"
         />
         <StatCard
           title="Monthly Savings"
-          value={`Rs ${monthlySavings.toLocaleString()}`}
+          value={localeFormatCurrency(monthlySavings)}
           icon={PiggyBank}
-          trend={summary?.savingsTrend}
-          trendLabel="vs last month"
           color="sky"
         />
       </div>
@@ -294,7 +364,7 @@ export default function Dashboard() {
                     {txn.type === 'saving' || txn.type === 'deposit' || txn.type === 'repayment'
                       ? '+'
                       : '-'}
-                    Rs {Math.abs(txn.amount ?? 0).toLocaleString()}
+                    {localeFormatCurrency(Math.abs(txn.amount ?? 0))}
                   </span>
                 </div>
               ))}

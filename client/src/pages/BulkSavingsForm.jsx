@@ -4,7 +4,7 @@ import { Save, ArrowLeft, Loader2, Calendar } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
 
 export default function BulkSavingsForm() {
-  const { formatCurrency } = useLocale();
+  const { formatCurrency, getTodayDateInputValue } = useLocale();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -12,7 +12,7 @@ export default function BulkSavingsForm() {
   const [settings, setSettings] = useState(null);
   
   // Form State
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getTodayDateInputValue());
   const [notes, setNotes] = useState('Bulk Monthly Savings');
   const [entries, setEntries] = useState({}); // { memberId: { included: true, amount: 1000 } }
   

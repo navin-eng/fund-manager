@@ -79,6 +79,29 @@ router.get('/', (req, res) => {
   }
 });
 
+// GET /api/savings/:id - fetch a single savings transaction
+router.get('/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const transaction = db.prepare(`
+      SELECT s.*, m.name AS member_name
+      FROM savings s
+      JOIN members m ON s.member_id = m.id
+      WHERE s.id = ?
+    `).get(id);
+
+    if (!transaction) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    res.json(transaction);
+  } catch (error) {
+    console.error('Error fetching saving transaction:', error);
+    res.status(500).json({ error: 'Failed to fetch saving transaction' });
+  }
+});
+
 // POST /api/savings - create saving transaction
 router.post('/', (req, res) => {
   try {

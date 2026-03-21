@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowUpCircle,
   ArrowDownCircle,
@@ -15,25 +15,24 @@ import {
 import { useLocale } from '../contexts/LocaleContext';
 import { normalizeSavingsSummary } from '../utils/apiTransforms';
 
-// formatCurrency is now handled by useLocale hook
-
-const todayISO = () => new Date().toISOString().split('T')[0];
-
 export default function SavingsForm() {
-  const { formatCurrency } = useLocale();
+  const { formatCurrency, getTodayDateInputValue, toDateInputValue } = useLocale();
   const navigate = useNavigate();
+  const { id } = useParams();
   const [searchParams] = useSearchParams();
   const preselectedMemberId = searchParams.get('member') || '';
+  const isEditing = Boolean(id);
 
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [loadingTransaction, setLoadingTransaction] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     memberId: preselectedMemberId,
     type: 'deposit',
     amount: '',
-    date: todayISO(),
+    date: getTodayDateInputValue(),
     notes: '',
   });
 
@@ -60,7 +59,36 @@ export default function SavingsForm() {
     fetchMembers();
   }, []);
 
-  // Fetch member balance when member changes and type is Withdrawal
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const fetchTransaction = async () => {
+      try {
+        setLoadingTransaction(true);
+        const response = await fetch(`/api/savings/${id}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch transaction');
+        }
+        const transaction = await response.json();
+        setForm({
+          memberId: String(transaction.member_id ?? ''),
+          type: transaction.type || 'deposit',
+          amount: String(transaction.amount ?? ''),
+          date: toDateInputValue(transaction.date),
+          notes: transaction.notes || '',
+        });
+      } catch (err) {
+        console.error('Failed to fetch transaction:', err);
+        setErrors({ submit: 'Failed to load transaction details.' });
+      } finally {
+        setLoadingTransaction(false);
+      }
+    };
+
+    fetchTransaction();
+  }, [id, isEditing, toDateInputValue]);
+
+  // Fetch member balance when member changes and type is withdrawal
   useEffect(() => {
     if (!form.memberId || form.type !== 'withdrawal') {
       setMemberBalance(null);
@@ -131,8 +159,8 @@ export default function SavingsForm() {
 
     setSubmitting(true);
     try {
-      const response = await fetch('/api/savings', {
-        method: 'POST',
+      const response = await fetch(isEditing ? `/api/savings/${id}` : '/api/savings', {
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           member_id: Number(form.memberId),
@@ -147,7 +175,7 @@ export default function SavingsForm() {
         navigate('/savings');
       } else {
         const errData = await response.json();
-        setErrors({ submit: errData.message || 'Failed to save transaction.' });
+        setErrors({ submit: errData.error || errData.message || 'Failed to save transaction.' });
       }
     } catch (err) {
       console.error('Submit error:', err);
@@ -157,13 +185,24 @@ export default function SavingsForm() {
     }
   };
 
+  if (loadingTransaction) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+        <span className="ml-2 text-sm text-slate-500">Loading transaction...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-800">New Savings Transaction</h1>
+        <h1 className="text-2xl font-bold text-slate-800">
+          {isEditing ? 'Edit Savings Transaction' : 'New Savings Transaction'}
+        </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Record a deposit or withdrawal for a member.
+          {isEditing ? 'Update an existing deposit or withdrawal.' : 'Record a deposit or withdrawal for a member.'}
         </p>
       </div>
 
@@ -347,12 +386,12 @@ export default function SavingsForm() {
             {submitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Saving...
+                {isEditing ? 'Updating...' : 'Saving...'}
               </>
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                Save Transaction
+                {isEditing ? 'Update Transaction' : 'Save Transaction'}
               </>
             )}
           </button>
