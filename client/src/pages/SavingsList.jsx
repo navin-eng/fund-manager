@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLocale } from '../contexts/LocaleContext';
+import { authFetch, readJsonResponse } from '../api';
 import DateInput from '../components/DateInput';
 import {
   ArrowDownCircle,
@@ -120,8 +121,8 @@ export default function SavingsList() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const response = await fetch('/api/members');
-        const data = await response.json();
+        const response = await authFetch('/api/members');
+        const data = await readJsonResponse(response, []);
         setMembers(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Failed to fetch members:', error);
@@ -143,13 +144,13 @@ export default function SavingsList() {
         if (appliedFilters.type) params.append('type', appliedFilters.type);
 
         const queryString = params.toString() ? `?${params.toString()}` : '';
-        const response = await fetch(`/api/savings${queryString}`);
+        const response = await authFetch(`/api/savings${queryString}`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch savings');
         }
 
-        const data = await response.json();
+        const data = await readJsonResponse(response, []);
         const transactions = Array.isArray(data) ? data : [];
         setSavings(transactions);
         setSummary(calculateSummary(transactions));
@@ -188,7 +189,7 @@ export default function SavingsList() {
     if (!window.confirm('Are you sure you want to delete this transaction?')) return;
 
     try {
-      const response = await fetch(`/api/savings/${transactionId}`, { method: 'DELETE' });
+      const response = await authFetch(`/api/savings/${transactionId}`, { method: 'DELETE' });
 
       if (response.ok) {
         setSavings((currentSavings) => {

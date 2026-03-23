@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const { db, getSettings } = require('../db');
+const { requireRole } = require('../middleware/auth');
 
 // Configure multer for member photo uploads
 const photoDir = path.join(__dirname, '..', 'uploads', 'member-photos');
@@ -215,7 +216,7 @@ async function sendWelcomeEmail(member, username, password) {
   }
 }
 
-// GET /api/members - list all members
+// GET /api/members - list all members (members can only see themselves)
 router.get('/', (req, res) => {
   try {
     const { status } = req.query;
@@ -230,11 +231,22 @@ router.get('/', (req, res) => {
          WHERE l.member_id = m.id AND l.status IN ('active', 'approved')
         ) AS active_loans
       FROM members m
+      WHERE 1=1
     `;
 
     const params = [];
+
+    // Members can only see their own record
+    if (req.user.role === 'member') {
+      if (!req.user.member_id) {
+        return res.json([]);
+      }
+      query += ' AND m.id = ?';
+      params.push(req.user.member_id);
+    }
+
     if (status) {
-      query += ' WHERE m.status = ?';
+      query += ' AND m.status = ?';
       params.push(status);
     }
 
@@ -252,6 +264,11 @@ router.get('/', (req, res) => {
 router.get('/:id', (req, res) => {
   try {
     const { id } = req.params;
+
+    // Members can only view their own profile
+    if (req.user.role === 'member' && req.user.member_id !== parseInt(id)) {
+      return res.status(403).json({ error: 'You can only view your own profile' });
+    }
 
     const member = db.prepare(`
       SELECT m.*,
@@ -275,7 +292,13 @@ router.get('/:id', (req, res) => {
 
     const loans = getMemberLoansWithMetrics(id);
 
-    res.json({ ...member, savings_history: savings, loans });
+    // Include user account info (admin/manager only)
+    let userAccount = null;
+    if (req.user.role === 'admin' || req.user.role === 'manager') {
+      userAccount = db.prepare('SELECT id, username, status, last_login, created_at FROM users WHERE member_id = ?').get(id) || null;
+    }
+
+    res.json({ ...member, savings_history: savings, loans, user_account: userAccount });
   } catch (error) {
     console.error('Error fetching member:', error);
     res.status(500).json({ error: 'Failed to fetch member' });
@@ -286,6 +309,11 @@ router.get('/:id', (req, res) => {
 router.get('/:id/statement', (req, res) => {
   try {
     const { id } = req.params;
+
+    // Members can only view their own statement
+    if (req.user.role === 'member' && req.user.member_id !== parseInt(id)) {
+      return res.status(403).json({ error: 'You can only view your own statement' });
+    }
 
     const member = db.prepare('SELECT * FROM members WHERE id = ?').get(id);
     if (!member) {
@@ -317,12 +345,14 @@ router.get('/:id/statement', (req, res) => {
       ORDER BY lr.date DESC
     `).all(id);
 
+    const fundedStatuses = new Set(['approved', 'active', 'completed', 'defaulted']);
+    const fundedLoans = loans.filter((loan) => fundedStatuses.has(loan.status));
     const totalRepayments = repayments.reduce((sum, repayment) => sum + Number(repayment.amount || 0), 0);
     const totalInterestPaid = repayments.reduce((sum, repayment) => sum + Number(repayment.interest || 0), 0);
     const totalPenaltyPaid = repayments.reduce((sum, repayment) => sum + Number(repayment.penalty || 0), 0);
-    const totalLoanAmount = loans.reduce((sum, loan) => sum + Number(loan.amount || 0), 0);
-    const totalLoanRepayable = loans.reduce((sum, loan) => sum + Number(loan.total_amount || loan.amount || 0), 0);
-    const outstandingBalance = loans.reduce((sum, loan) => sum + Number(loan.remaining_balance || 0), 0);
+    const totalLoanAmount = fundedLoans.reduce((sum, loan) => sum + Number(loan.amount || 0), 0);
+    const totalLoanRepayable = fundedLoans.reduce((sum, loan) => sum + Number(loan.total_amount || loan.amount || 0), 0);
+    const outstandingBalance = fundedLoans.reduce((sum, loan) => sum + Number(loan.remaining_balance || 0), 0);
     const completedLoans = loans.filter((loan) => loan.status === 'completed').length;
     const activeLoans = loans.filter((loan) => loan.status === 'active' || loan.status === 'approved').length;
     const pendingLoans = loans.filter((loan) => loan.status === 'pending').length;
@@ -344,10 +374,11 @@ router.get('/:id/statement', (req, res) => {
         outstanding_balance: outstandingBalance,
         total_interest_paid: totalInterestPaid,
         total_penalty_paid: totalPenaltyPaid,
-        total_loans_taken: loans.length,
+        total_loans_taken: fundedLoans.length,
         active_loans: activeLoans,
         completed_loans: completedLoans,
         pending_loans: pendingLoans,
+        rejected_loans: loans.filter((loan) => loan.status === 'rejected').length,
         repayment_count: repayments.length,
         savings_transaction_count: savingsTransactionCount,
         average_deposit: averageDeposit,
@@ -368,8 +399,87 @@ router.get('/:id/statement', (req, res) => {
   }
 });
 
-// POST /api/members - create member
-router.post('/', upload.single('photo'), async (req, res) => {
+// POST /api/members/:id/generate-credentials - generate user account for existing member
+router.post('/:id/generate-credentials', requireRole('admin', 'manager'), (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const member = db.prepare('SELECT * FROM members WHERE id = ?').get(id);
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    // Check if member already has a user account
+    const existingUser = db.prepare('SELECT id, username FROM users WHERE member_id = ?').get(id);
+    if (existingUser) {
+      return res.status(409).json({ error: 'User account already exists for this member', username: existingUser.username });
+    }
+
+    const username = generateUsername(member.name);
+    const password = generatePassword();
+    const passwordHash = hashPassword(password);
+
+    db.prepare(
+      'INSERT INTO users (username, password_hash, name, email, role, member_id) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(username, passwordHash, member.name, member.email || null, 'member', member.id);
+
+    console.log(`User account created for member "${member.name}": username="${username}"`);
+
+    res.status(201).json({
+      message: 'Credentials generated successfully',
+      username,
+      password,
+      member_id: member.id,
+      member_name: member.name,
+    });
+  } catch (error) {
+    console.error('Error generating credentials:', error);
+    res.status(500).json({ error: 'Failed to generate credentials' });
+  }
+});
+
+// POST /api/members/generate-all-credentials - bulk generate user accounts for all members without one
+router.post('/generate-all-credentials', requireRole('admin', 'manager'), (req, res) => {
+  try {
+    const membersWithoutAccounts = db.prepare(`
+      SELECT m.* FROM members m
+      LEFT JOIN users u ON u.member_id = m.id
+      WHERE u.id IS NULL AND m.status = 'active'
+    `).all();
+
+    if (membersWithoutAccounts.length === 0) {
+      return res.json({ message: 'All members already have user accounts', generated: [] });
+    }
+
+    const generated = [];
+    for (const member of membersWithoutAccounts) {
+      try {
+        const username = generateUsername(member.name);
+        const password = generatePassword();
+        const passwordHash = hashPassword(password);
+
+        db.prepare(
+          'INSERT INTO users (username, password_hash, name, email, role, member_id) VALUES (?, ?, ?, ?, ?, ?)'
+        ).run(username, passwordHash, member.name, member.email || null, 'member', member.id);
+
+        generated.push({ member_id: member.id, member_name: member.name, username, password });
+      } catch (err) {
+        console.error(`Failed to generate account for member ${member.name}:`, err.message);
+      }
+    }
+
+    res.status(201).json({
+      message: `Generated ${generated.length} user account(s)`,
+      generated,
+    });
+  } catch (error) {
+    console.error('Error generating bulk credentials:', error);
+    res.status(500).json({ error: 'Failed to generate credentials' });
+  }
+});
+
+// POST /api/members - create member (admin/manager only)
+router.post('/', requireRole('admin', 'manager'), upload.single('photo'), async (req, res) => {
   try {
     const { name, email, phone, address, joined_date, emergency_contact } = req.body;
     const photo_url = req.file ? `/uploads/member-photos/${req.file.filename}` : (req.body.photo_url || null);
@@ -430,8 +540,8 @@ function optionalUpload(req, res, next) {
   }
 }
 
-// PUT /api/members/:id - update member
-router.put('/:id', optionalUpload, (req, res) => {
+// PUT /api/members/:id - update member (admin/manager only)
+router.put('/:id', requireRole('admin', 'manager'), optionalUpload, (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, address, joined_date, emergency_contact, status } = req.body;
@@ -467,8 +577,8 @@ router.put('/:id', optionalUpload, (req, res) => {
   }
 });
 
-// DELETE /api/members/:id - soft delete (set status=inactive)
-router.delete('/:id', (req, res) => {
+// DELETE /api/members/:id - soft delete (admin/manager only)
+router.delete('/:id', requireRole('admin', 'manager'), (req, res) => {
   try {
     const { id } = req.params;
 

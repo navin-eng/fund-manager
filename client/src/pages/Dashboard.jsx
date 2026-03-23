@@ -140,11 +140,13 @@ export default function Dashboard() {
       try {
         setLoading(true);
         setError(null);
+        const token = localStorage.getItem('auth_token');
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
         const [summaryRes, balanceRes, savingsRes, loansRes] = await Promise.all([
-          fetch('/api/reports/summary?period=monthly'),
-          fetch('/api/reports/balance-sheet'),
-          fetch('/api/savings'),
-          fetch('/api/loans'),
+          fetch('/api/reports/summary?period=monthly', { headers: authHeaders }),
+          fetch('/api/reports/balance-sheet', { headers: authHeaders }),
+          fetch('/api/savings', { headers: authHeaders }),
+          fetch('/api/loans', { headers: authHeaders }),
         ]);
 
         if (!summaryRes.ok || !balanceRes.ok || !savingsRes.ok || !loansRes.ok) {

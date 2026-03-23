@@ -15,6 +15,8 @@ const incomeRouter = require('./routes/income');
 const distributionsRouter = require('./routes/distributions');
 const reserveRouter = require('./routes/reserve');
 
+const { authenticate, requireRole } = require('./middleware/auth');
+
 const app = express();
 const PORT = process.env.PORT || 5001;
 
@@ -48,29 +50,34 @@ if (!fs.existsSync(backupsDir)) {
 app.use('/uploads', express.static(uploadsDir));
 
 // API routes
+// Auth routes handle their own authentication (login is public)
 app.use('/api/auth', authRouter);
-app.use('/api/members', membersRouter);
-app.use('/api/savings', savingsRouter);
-app.use('/api/loans', loansRouter);
-app.use('/api/reports', reportsRouter);
-app.use('/api/settings', settingsModule.settingsRouter);
-app.use('/api/balance-adjustments', settingsModule.adjustmentsRouter);
-app.use('/api/fund-ledger', fundLedgerRouter);
-app.use('/api/income', incomeRouter);
-app.use('/api/distributions', distributionsRouter);
-app.use('/api/reserve', reserveRouter);
+
+// Data routes - require authentication
+app.use('/api/members', authenticate, membersRouter);
+app.use('/api/savings', authenticate, savingsRouter);
+app.use('/api/loans', authenticate, loansRouter);
+
+// Admin/Manager only routes - members cannot access these
+app.use('/api/reports', authenticate, requireRole('admin', 'manager'), reportsRouter);
+app.use('/api/settings', authenticate, settingsModule.settingsRouter);
+app.use('/api/balance-adjustments', authenticate, requireRole('admin', 'manager'), settingsModule.adjustmentsRouter);
+app.use('/api/fund-ledger', authenticate, requireRole('admin', 'manager'), fundLedgerRouter);
+app.use('/api/income', authenticate, requireRole('admin', 'manager'), incomeRouter);
+app.use('/api/distributions', authenticate, requireRole('admin', 'manager'), distributionsRouter);
+app.use('/api/reserve', authenticate, requireRole('admin', 'manager'), reserveRouter);
 
 // Export and backup routes (loaded after they're created)
 try {
   const exportRouter = require('./routes/export');
-  app.use('/api/export', exportRouter);
+  app.use('/api/export', authenticate, requireRole('admin', 'manager'), exportRouter);
 } catch (e) {
   console.log('Export routes not available yet');
 }
 
 try {
   const backupRouter = require('./routes/backup');
-  app.use('/api/backup', backupRouter);
+  app.use('/api/backup', authenticate, requireRole('admin'), backupRouter);
 } catch (e) {
   console.log('Backup routes not available yet');
 }

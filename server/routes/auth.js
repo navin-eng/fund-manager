@@ -201,11 +201,11 @@ router.put('/change-password', authenticate, (req, res) => {
   }
 });
 
-// GET /api/auth/users (admin only)
+// GET /api/auth/users (admin only) - only admin/manager users, not member accounts
 router.get('/users', authenticate, requireRole('admin'), (req, res) => {
   try {
     const users = db.prepare(
-      'SELECT id, username, name, role, email, status, member_id, last_login, created_at FROM users ORDER BY created_at DESC'
+      "SELECT id, username, name, role, email, status, member_id, last_login, created_at FROM users WHERE role IN ('admin', 'manager') ORDER BY created_at DESC"
     ).all();
 
     res.json({ users });

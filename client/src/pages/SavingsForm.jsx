@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
+import { authFetch, readJsonResponse } from '../api';
 import { normalizeSavingsSummary } from '../utils/apiTransforms';
 import DateInput from '../components/DateInput';
 
@@ -45,11 +46,11 @@ export default function SavingsForm() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const response = await fetch('/api/members?status=active');
+        const response = await authFetch('/api/members?status=active');
         if (!response.ok) {
           throw new Error('Failed to fetch members');
         }
-        const data = await response.json();
+        const data = await readJsonResponse(response, []);
         setMembers(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error('Failed to fetch members:', err);
@@ -66,11 +67,11 @@ export default function SavingsForm() {
     const fetchTransaction = async () => {
       try {
         setLoadingTransaction(true);
-        const response = await fetch(`/api/savings/${id}`);
+        const response = await authFetch(`/api/savings/${id}`);
         if (!response.ok) {
           throw new Error('Failed to fetch transaction');
         }
-        const transaction = await response.json();
+        const transaction = await readJsonResponse(response, {});
         setForm({
           memberId: String(transaction.member_id ?? ''),
           type: transaction.type || 'deposit',
@@ -99,11 +100,11 @@ export default function SavingsForm() {
     const fetchBalance = async () => {
       setLoadingBalance(true);
       try {
-        const response = await fetch('/api/savings/summary');
+        const response = await authFetch('/api/savings/summary');
         if (!response.ok) {
           throw new Error('Failed to fetch member balance');
         }
-        const data = normalizeSavingsSummary(await response.json());
+        const data = normalizeSavingsSummary(await readJsonResponse(response, {}));
         const memberSummary = data.byMember.find(
           (entry) => String(entry.member_id) === String(form.memberId)
         );
@@ -160,7 +161,7 @@ export default function SavingsForm() {
 
     setSubmitting(true);
     try {
-      const response = await fetch(isEditing ? `/api/savings/${id}` : '/api/savings', {
+      const response = await authFetch(isEditing ? `/api/savings/${id}` : '/api/savings', {
         method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -175,7 +176,7 @@ export default function SavingsForm() {
       if (response.ok) {
         navigate('/savings');
       } else {
-        const errData = await response.json();
+        const errData = await readJsonResponse(response, {});
         setErrors({ submit: errData.error || errData.message || 'Failed to save transaction.' });
       }
     } catch (err) {

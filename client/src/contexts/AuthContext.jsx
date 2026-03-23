@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { readJsonResponse } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -27,7 +28,7 @@ export function AuthProvider({ children }) {
         });
 
         if (response.ok) {
-          const data = await response.json();
+          const data = await readJsonResponse(response, {});
           setUser(data.user);
           setToken(storedToken);
         } else {
@@ -56,7 +57,7 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ username, password }),
     });
 
-    const data = await response.json();
+    const data = await readJsonResponse(response, {});
 
     if (!response.ok) {
       throw new Error(data.message || 'Login failed');

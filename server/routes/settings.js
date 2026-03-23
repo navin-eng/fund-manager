@@ -2,6 +2,7 @@ const express = require('express');
 const settingsRouter = express.Router();
 const adjustmentsRouter = express.Router();
 const { db, getSettings, updateSetting, getSetting } = require('../db');
+const { requireRole } = require('../middleware/auth');
 
 // GET /api/settings - get all settings
 settingsRouter.get('/', (req, res) => {
@@ -14,8 +15,8 @@ settingsRouter.get('/', (req, res) => {
   }
 });
 
-// PUT /api/settings - update settings (accepts object of key-value pairs)
-settingsRouter.put('/', (req, res) => {
+// PUT /api/settings - update settings (admin only)
+settingsRouter.put('/', requireRole('admin'), (req, res) => {
   try {
     const updates = req.body;
 

@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useLocale } from '../contexts/LocaleContext';
+import { useAuth } from '../contexts/AuthContext';
+import { authFetch, readJsonResponse } from '../api';
 import { buildMemberProfileData } from '../utils/memberProfile';
 import MemberInfographics from '../components/MemberInfographics';
 import {
   ArrowDownCircle,
   ArrowLeft,
   ArrowUpCircle,
+  Check,
+  Copy,
   Download,
+  Key,
   Landmark,
   Loader2,
   Mail,
@@ -16,6 +21,7 @@ import {
   PiggyBank,
   Printer,
   ShieldAlert,
+  UserPlus,
   Wallet,
   CircleDollarSign,
   CreditCard,
@@ -64,10 +70,32 @@ function MiniStat({ label, value, helper, valueClassName = 'text-[var(--text-pri
 export default function MemberDetail() {
   const { id } = useParams();
   const { formatDate: localeFormatDate, formatCurrency: localeFormatCurrency } = useLocale();
+  const { user: currentUser } = useAuth();
   const [memberData, setMemberData] = useState(null);
   const [statementData, setStatementData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [credentialModal, setCredentialModal] = useState(null);
+  const [generatingCreds, setGeneratingCreds] = useState(false);
+
+  const isStaff = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+
+  const handleGenerateCredentials = async () => {
+    setGeneratingCreds(true);
+    try {
+      const res = await authFetch(`/api/members/${id}/generate-credentials`, { method: 'POST' });
+      const data = await readJsonResponse(res, {});
+      if (!res.ok) throw new Error(data.error || 'Failed to generate credentials');
+      setCredentialModal({ username: data.username, password: data.password });
+      // Refresh member data to update user_account info
+      const memberRes = await authFetch(`/api/members/${id}`);
+      if (memberRes.ok) setMemberData(await readJsonResponse(memberRes, {}));
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGeneratingCreds(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -78,8 +106,8 @@ export default function MemberDetail() {
         setError(null);
 
         const [memberResponse, statementResponse] = await Promise.all([
-          fetch(`/api/members/${id}`),
-          fetch(`/api/members/${id}/statement`),
+          authFetch(`/api/members/${id}`),
+          authFetch(`/api/members/${id}/statement`),
         ]);
 
         if (!memberResponse.ok || !statementResponse.ok) {
@@ -87,8 +115,8 @@ export default function MemberDetail() {
         }
 
         const [memberResult, statementResult] = await Promise.all([
-          memberResponse.json(),
-          statementResponse.json(),
+          readJsonResponse(memberResponse, {}),
+          readJsonResponse(statementResponse, {}),
         ]);
 
         if (!active) return;
@@ -184,6 +212,22 @@ export default function MemberDetail() {
           </Link>
 
           <div className="flex items-center gap-2">
+            {isStaff && !memberData?.user_account && (
+              <button
+                onClick={handleGenerateCredentials}
+                disabled={generatingCreds}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-violet-700 disabled:opacity-60 sm:px-4 sm:text-sm"
+              >
+                <Key className="h-4 w-4" />
+                <span className="hidden xs:inline">{generatingCreds ? 'Generating...' : 'Generate Credentials'}</span>
+              </button>
+            )}
+            {isStaff && memberData?.user_account && (
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 sm:px-4 sm:text-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
+                <Check className="h-4 w-4" />
+                <span className="hidden xs:inline">ID: {memberData.user_account.username}</span>
+              </span>
+            )}
             <Link
               to={`/savings/new?member=${id}`}
               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-emerald-700 sm:px-4 sm:text-sm"
@@ -423,6 +467,10 @@ export default function MemberDetail() {
                           ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
                           : loan.status?.toLowerCase() === 'completed'
                           ? 'bg-sky-50 text-sky-700 dark:bg-sky-500/20 dark:text-sky-400'
+                          : loan.status?.toLowerCase() === 'pending'
+                          ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                          : loan.status?.toLowerCase() === 'rejected'
+                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'
                           : 'bg-[var(--surface-1)] text-[var(--text-muted)]'
                       }`}>
                         {loan.status || '—'}
@@ -502,6 +550,10 @@ export default function MemberDetail() {
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
                               : loan.status?.toLowerCase() === 'completed'
                               ? 'bg-sky-50 text-sky-700 dark:bg-sky-500/20 dark:text-sky-400'
+                              : loan.status?.toLowerCase() === 'pending'
+                              ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                              : loan.status?.toLowerCase() === 'rejected'
+                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'
                               : 'bg-[var(--surface-3)] text-[var(--text-muted)]'
                           }`}>
                             {loan.status || '—'}
@@ -689,6 +741,59 @@ export default function MemberDetail() {
 
       {/* ── Financial Charts ── */}
       <MemberInfographics totals={totals} formatCurrency={formatCurrency} />
+
+      {/* ── Credential Modal ── */}
+      {credentialModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl dark:bg-slate-800">
+            <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800 dark:text-white">
+                <Key className="h-5 w-5 text-violet-600" />
+                Credentials Generated
+              </h2>
+            </div>
+            <div className="space-y-4 p-6">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Save these credentials. The password cannot be retrieved later.
+              </p>
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-700/50">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Username</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <code className="text-lg font-bold text-slate-800 dark:text-white">{credentialModal.username}</code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(credentialModal.username)}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-600"
+                      title="Copy username"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="border-t border-slate-200 pt-3 dark:border-slate-600">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Password</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <code className="text-lg font-bold text-slate-800 dark:text-white">{credentialModal.password}</code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(credentialModal.password)}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-600"
+                      title="Copy password"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setCredentialModal(null)}
+                className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

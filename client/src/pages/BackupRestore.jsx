@@ -18,6 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { authFetch, readJsonResponse } from '../api';
 import DateInput from '../components/DateInput';
 
 const REPORT_PERIODS = [
@@ -150,13 +151,13 @@ export default function BackupRestore() {
     setLoadingState('history', true);
 
     try {
-      const response = await fetch('/api/backup/history');
+      const response = await authFetch('/api/backup/history');
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Failed to load backup history' }));
+        const error = await readJsonResponse(response, { error: 'Failed to load backup history' });
         throw new Error(error.error || 'Failed to load backup history');
       }
 
-      const data = await response.json();
+      const data = await readJsonResponse(response, []);
       setBackupHistory(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch backup history:', error);
@@ -170,12 +171,12 @@ export default function BackupRestore() {
 
   const fetchMembers = useCallback(async () => {
     try {
-      const response = await fetch('/api/members?status=active');
+      const response = await authFetch('/api/members?status=active');
       if (!response.ok) {
         throw new Error('Failed to fetch members');
       }
 
-      const data = await response.json();
+      const data = await readJsonResponse(response, []);
       setMembers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch members for export filters:', error);
@@ -201,9 +202,9 @@ export default function BackupRestore() {
   }, [backupHistory]);
 
   const downloadFile = useCallback(async (url, defaultFilename) => {
-    const response = await fetch(url);
+    const response = await authFetch(url);
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Download failed' }));
+      const error = await readJsonResponse(response, { error: 'Download failed' });
       throw new Error(error.error || 'Download failed');
     }
 
@@ -245,8 +246,8 @@ export default function BackupRestore() {
     setLoadingState('autoBackup', true);
 
     try {
-      const response = await fetch('/api/backup/auto', { method: 'POST' });
-      const data = await response.json();
+      const response = await authFetch('/api/backup/auto', { method: 'POST' });
+      const data = await readJsonResponse(response, {});
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Failed to create server snapshot');
@@ -280,10 +281,10 @@ export default function BackupRestore() {
     setLoadingState(`delete_${backupToDelete}`, true);
 
     try {
-      const response = await fetch(`/api/backup/files/${encodeURIComponent(backupToDelete)}`, {
+      const response = await authFetch(`/api/backup/files/${encodeURIComponent(backupToDelete)}`, {
         method: 'DELETE',
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response, {});
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Failed to delete backup');
@@ -340,12 +341,12 @@ export default function BackupRestore() {
       const formData = new FormData();
       formData.append('backup', restoreFile);
 
-      const response = await fetch('/api/backup/restore', {
+      const response = await authFetch('/api/backup/restore', {
         method: 'POST',
         body: formData,
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response, {});
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Restore failed');

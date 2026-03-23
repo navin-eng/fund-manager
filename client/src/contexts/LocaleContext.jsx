@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { t as translate, formatCurrency as formatCurrencyUtil, formatNumber as formatNumberUtil } from '../utils/localization';
 import { ADtoBS, BStoAD, NepaliDate } from 'nepali-date-library';
+import { readJsonResponse } from '../api';
 
 const LocaleContext = createContext(null);
 
@@ -105,9 +106,11 @@ export function LocaleProvider({ children }) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await fetch('/api/settings');
+        const token = localStorage.getItem('auth_token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await fetch('/api/settings', { headers });
         if (response.ok) {
-          const settings = await response.json();
+          const settings = await readJsonResponse(response, {});
           if (settings.language) {
             setLanguageState(settings.language);
             localStorage.setItem('app_language', settings.language);

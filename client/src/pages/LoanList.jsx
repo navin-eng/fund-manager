@@ -15,8 +15,10 @@ import {
   Plus,
   Search,
   TrendingUp,
+  XCircle,
 } from 'lucide-react';
-import { approveLoan, getLoans, getMembers } from '../api';
+import { approveLoan, getLoans, getMembers, rejectLoan } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { normalizeLoan } from '../utils/apiTransforms';
 
@@ -26,6 +28,7 @@ const STATUS_BADGES = {
   approved: 'bg-blue-50 text-blue-700 border border-blue-200',
   completed: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
   defaulted: 'bg-rose-50 text-rose-600 border border-rose-200',
+  rejected: 'bg-rose-50 text-rose-700 border border-rose-200',
 };
 
 const STATUS_ICONS = {
@@ -34,6 +37,7 @@ const STATUS_ICONS = {
   approved: Banknote,
   completed: CheckCircle,
   defaulted: AlertTriangle,
+  rejected: XCircle,
 };
 
 const PAGE_SIZE = 10;
@@ -67,7 +71,8 @@ function SummaryCard({ icon: Icon, label, value, iconClassName, valueClassName =
 }
 
 export default function LoanList() {
-  const { formatDate: localeFormatDate, formatCurrency: localeFormatCurrency } = useLocale();
+  const { user } = useAuth();
+  const { formatDate: localeFormatDate, formatCurrency: localeFormatCurrency, t } = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
   const [loans, setLoans] = useState([]);
   const [members, setMembers] = useState([]);
@@ -80,10 +85,12 @@ export default function LoanList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [approving, setApproving] = useState(null);
+  const [rejecting, setRejecting] = useState(null);
   const [memberFilter, setMemberFilter] = useState(searchParams.get('member') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
   const [query, setQuery] = useState(searchParams.get('q') || '');
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1', 10));
+  const isMember = user?.role === 'member';
 
   const formatDate = (value) => {
     if (!value) return '—';
@@ -209,17 +216,19 @@ export default function LoanList() {
 
     const computedSummary = loans.reduce(
       (accumulator, loan) => {
-        if (loan.status !== 'pending') {
+        const status = String(loan.status || '').toLowerCase();
+
+        if (['active', 'approved', 'completed', 'defaulted'].includes(status)) {
           accumulator.totalDisbursed += Number(loan.amount || 0);
         }
 
-        if (loan.status === 'active' || loan.status === 'approved') {
+        if (status === 'active' || status === 'approved') {
           accumulator.outstandingAmount += Number(loan.remainingBalance || 0);
         }
 
         accumulator.interestEarned += Number(loan.totalInterest || 0);
 
-        if (loan.is_overdue || loan.status === 'defaulted') {
+        if (loan.is_overdue || status === 'defaulted') {
           accumulator.overdueLoans += 1;
         }
 
@@ -242,6 +251,20 @@ export default function LoanList() {
       alert(`Failed to approve loan: ${approvalError.message}`);
     } finally {
       setApproving(null);
+    }
+  };
+
+  const handleReject = async (loanId) => {
+    if (!window.confirm('Are you sure you want to reject this loan request?')) return;
+
+    setRejecting(loanId);
+    try {
+      await rejectLoan(loanId);
+      fetchLoans();
+    } catch (rejectError) {
+      alert(`Failed to reject loan: ${rejectError.message}`);
+    } finally {
+      setRejecting(null);
     }
   };
 
@@ -301,7 +324,7 @@ export default function LoanList() {
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700 sm:w-auto"
           >
             <Plus className="h-4 w-4" />
-            New Loan
+            {isMember ? t('loans.requestLoan') : t('loans.newLoan')}
           </Link>
         </div>
       </section>
@@ -321,7 +344,7 @@ export default function LoanList() {
       </div>
 
       <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_14rem_12rem]">
+        <div className={`grid grid-cols-1 gap-4 ${isMember ? 'lg:grid-cols-[minmax(0,1fr)_12rem]' : 'lg:grid-cols-[minmax(0,1fr)_14rem_12rem]'}`}>
           <label className="relative block">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -333,18 +356,20 @@ export default function LoanList() {
             />
           </label>
 
-          <select
-            value={memberFilter}
-            onChange={(event) => setMemberFilter(event.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"
-          >
-            <option value="">All Members</option>
-            {members.map((member) => (
-              <option key={member.id || member._id} value={member.id || member._id}>
-                {member.name || `${member.first_name || ''} ${member.last_name || ''}`.trim()}
-              </option>
-            ))}
-          </select>
+          {!isMember && (
+            <select
+              value={memberFilter}
+              onChange={(event) => setMemberFilter(event.target.value)}
+              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"
+            >
+              <option value="">All Members</option>
+              {members.map((member) => (
+                <option key={member.id || member._id} value={member.id || member._id}>
+                  {member.name || `${member.first_name || ''} ${member.last_name || ''}`.trim()}
+                </option>
+              ))}
+            </select>
+          )}
 
           <select
             value={statusFilter}
@@ -356,6 +381,7 @@ export default function LoanList() {
             <option value="active">Active</option>
             <option value="completed">Completed</option>
             <option value="defaulted">Defaulted</option>
+            <option value="rejected">{t('loans.rejected')}</option>
           </select>
         </div>
 
@@ -401,7 +427,9 @@ export default function LoanList() {
             <p className="mt-1 text-sm text-slate-500">
               {memberFilter || statusFilter || query
                 ? 'Try changing the search or active filters.'
-                : 'Create a new loan to get started.'}
+                : isMember
+                  ? 'Submit your first loan request to get started.'
+                  : 'Create a new loan to get started.'}
             </p>
             {!memberFilter && !statusFilter && !query && (
               <Link
@@ -409,7 +437,7 @@ export default function LoanList() {
                 className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white"
               >
                 <Plus className="h-4 w-4" />
-                New Loan
+                {isMember ? t('loans.requestLoan') : t('loans.newLoan')}
               </Link>
             )}
           </div>
@@ -419,7 +447,8 @@ export default function LoanList() {
               {paginatedLoans.map((loan) => {
                 const status = String(loan.status || 'pending').toLowerCase();
                 const StatusIcon = STATUS_ICONS[status] || Clock;
-                const canApprove = status === 'pending';
+                const canApprove = !isMember && status === 'pending';
+                const canReject = !isMember && status === 'pending';
 
                 return (
                   <article key={loan.id} className="rounded-[1.6rem] border border-slate-200 bg-slate-50 p-4">
@@ -458,7 +487,7 @@ export default function LoanList() {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
                       <Link
                         to={`/loans/${loan.id}`}
                         className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-3 py-2.5 text-sm font-medium text-white"
@@ -479,6 +508,21 @@ export default function LoanList() {
                             <CheckCircle className="h-4 w-4" />
                           )}
                           Approve
+                        </button>
+                      )}
+                      {canReject && (
+                        <button
+                          type="button"
+                          onClick={() => handleReject(loan.id)}
+                          disabled={rejecting === loan.id}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-rose-600 px-3 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+                        >
+                          {rejecting === loan.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <XCircle className="h-4 w-4" />
+                          )}
+                          {t('loans.reject')}
                         </button>
                       )}
                     </div>
@@ -505,7 +549,8 @@ export default function LoanList() {
                   {paginatedLoans.map((loan) => {
                     const status = String(loan.status || 'pending').toLowerCase();
                     const StatusIcon = STATUS_ICONS[status] || Clock;
-                    const canApprove = status === 'pending';
+                    const canApprove = !isMember && status === 'pending';
+                    const canReject = !isMember && status === 'pending';
 
                     return (
                       <tr key={loan.id}>
@@ -550,6 +595,21 @@ export default function LoanList() {
                                   <CheckCircle className="h-3.5 w-3.5" />
                                 )}
                                 Approve
+                              </button>
+                            )}
+                            {canReject && (
+                              <button
+                                type="button"
+                                onClick={() => handleReject(loan.id)}
+                                disabled={rejecting === loan.id}
+                                className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-2.5 py-2 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                              >
+                                {rejecting === loan.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <XCircle className="h-3.5 w-3.5" />
+                                )}
+                                {t('loans.reject')}
                               </button>
                             )}
                           </div>

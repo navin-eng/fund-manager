@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { createLoan, getMembers, getSettings } from '../api';
 import { useLocale } from '../contexts/LocaleContext';
+import { useAuth } from '../contexts/AuthContext';
 import DateInput from '../components/DateInput';
 
 // formatCurrency is now handled by useLocale hook
@@ -40,16 +41,18 @@ function calculateEMI(principal, annualRate, termMonths) {
 
 export default function LoanForm() {
   const { formatCurrency, getTodayDateInputValue, t } = useLocale();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedMemberId = searchParams.get('member') || '';
+  const isMemberRequest = user?.role === 'member';
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState(null);
 
   const [form, setForm] = useState({
-    member_id: preselectedMemberId,
+    member_id: isMemberRequest ? String(user?.member_id || '') : preselectedMemberId,
     amount: '',
     interest_rate: '',
     term: '',
@@ -58,6 +61,7 @@ export default function LoanForm() {
   });
 
   const [errors, setErrors] = useState({});
+  const [memberRateLocked, setMemberRateLocked] = useState(false);
 
   // Load members and settings
   useEffect(() => {
@@ -83,6 +87,9 @@ export default function LoanForm() {
             '';
           if (defaultRate) {
             setForm((prev) => ({ ...prev, interest_rate: String(defaultRate) }));
+            if (isMemberRequest) {
+              setMemberRateLocked(true);
+            }
           }
         }
       } catch {
@@ -92,13 +99,28 @@ export default function LoanForm() {
       }
     }
     loadData();
-  }, []);
+  }, [isMemberRequest]);
+
+  useEffect(() => {
+    if (!isMemberRequest) return;
+
+    setForm((prev) => ({
+      ...prev,
+      member_id: String(user?.member_id || ''),
+    }));
+  }, [isMemberRequest, user?.member_id]);
 
   // Live EMI calculation
   const emiResult = useMemo(
     () => calculateEMI(form.amount, form.interest_rate, form.term),
     [form.amount, form.interest_rate, form.term]
   );
+  const selectedMember = useMemo(
+    () => members.find((member) => String(member.id) === String(form.member_id)),
+    [form.member_id, members]
+  );
+  const memberAccountMissing = isMemberRequest && !form.member_id;
+  const rateLocked = isMemberRequest && memberRateLocked;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -130,7 +152,7 @@ export default function LoanForm() {
     setError(null);
     try {
       const payload = {
-        member_id: Number(form.member_id),
+        member_id: Number(form.member_id || user?.member_id),
         amount: Number(form.amount),
         interest_rate: Number(form.interest_rate),
         term_months: Number(form.term),
@@ -166,8 +188,12 @@ export default function LoanForm() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{t('loans.newLoan')}</h1>
-          <p className="mt-1 text-sm text-slate-500">{t('loans.createNewLoan')}</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {isMemberRequest ? t('loans.requestLoan') : t('loans.newLoan')}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {isMemberRequest ? t('loans.requestNewLoan') : t('loans.createNewLoan')}
+          </p>
         </div>
       </div>
 
@@ -176,6 +202,17 @@ export default function LoanForm() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-red-600" />
             <p className="text-sm font-medium text-red-800">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {memberAccountMissing && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <p className="text-sm font-medium text-amber-800">
+              Your account is not linked to a member profile yet. Please contact an administrator before requesting a loan.
+            </p>
           </div>
         </div>
       )}
@@ -194,21 +231,34 @@ export default function LoanForm() {
                   <Users className="h-4 w-4 text-slate-400" />
                   {t('common.member')} <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="member_id"
-                  value={form.member_id}
-                  onChange={handleChange}
-                  className={`w-full rounded-lg border px-3 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-                    errors.member_id ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
-                  }`}
-                >
-                  <option value="">{t('loans.selectMember')}</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name || `${m.first_name || ''} ${m.last_name || ''}`.trim()}
-                    </option>
-                  ))}
-                </select>
+                {isMemberRequest ? (
+                  <div className={`rounded-lg border px-3 py-3 text-sm shadow-sm ${
+                    errors.member_id ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-slate-50'
+                  }`}>
+                    <p className="font-medium text-slate-800">
+                      {selectedMember?.name || user?.name || 'Linked member profile'}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      This request will be submitted under your member account.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    name="member_id"
+                    value={form.member_id}
+                    onChange={handleChange}
+                    className={`w-full rounded-lg border px-3 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                      errors.member_id ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
+                    }`}
+                  >
+                    <option value="">{t('loans.selectMember')}</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name || `${m.first_name || ''} ${m.last_name || ''}`.trim()}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {errors.member_id && (
                   <p className="mt-1 text-xs text-red-600">{errors.member_id}</p>
                 )}
@@ -249,6 +299,7 @@ export default function LoanForm() {
                     name="interest_rate"
                     value={form.interest_rate}
                     onChange={handleChange}
+                    readOnly={rateLocked}
                     placeholder="e.g. 12"
                     min="0"
                     step="0.01"
@@ -256,6 +307,11 @@ export default function LoanForm() {
                       errors.interest_rate ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
                     }`}
                   />
+                  {rateLocked && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      The interest rate follows the current fund settings for member requests.
+                    </p>
+                  )}
                   {errors.interest_rate && (
                     <p className="mt-1 text-xs text-red-600">{errors.interest_rate}</p>
                   )}
@@ -333,7 +389,7 @@ export default function LoanForm() {
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || memberAccountMissing}
                 className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
               >
                 {loading ? (
@@ -344,7 +400,7 @@ export default function LoanForm() {
                 ) : (
                   <>
                     <Banknote className="h-4 w-4" />
-                    {t('loans.createLoan')}
+                    {isMemberRequest ? t('loans.submitRequest') : t('loans.createLoan')}
                   </>
                 )}
               </button>

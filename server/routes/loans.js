@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const { db, getSetting } = require('../db');
 const { addMonthsToDateString, diffWholeMonths, getTodayDateString } = require('../date-utils');
+const { requireRole } = require('../middleware/auth');
 
 // Multer configuration
 const storage = multer.diskStorage({
@@ -28,7 +29,7 @@ function calculateEMI(principal, annualRate, termMonths) {
   return Math.round(emi * 100) / 100;
 }
 
-// GET /api/loans - list all loans
+// GET /api/loans - list all loans (members see only their own)
 router.get('/', (req, res) => {
   try {
     const { status, member_id } = req.query;
@@ -43,13 +44,18 @@ router.get('/', (req, res) => {
     `;
     const params = [];
 
+    // Members can only see their own loans
+    if (req.user.role === 'member') {
+      query += ' AND l.member_id = ?';
+      params.push(req.user.member_id);
+    } else if (member_id) {
+      query += ' AND l.member_id = ?';
+      params.push(member_id);
+    }
+
     if (status) {
       query += ' AND l.status = ?';
       params.push(status);
-    }
-    if (member_id) {
-      query += ' AND l.member_id = ?';
-      params.push(member_id);
     }
 
     query += ' ORDER BY l.created_at DESC';
@@ -79,6 +85,11 @@ router.get('/:id', (req, res) => {
       return res.status(404).json({ error: 'Loan not found' });
     }
 
+    // Members can only view their own loans
+    if (req.user.role === 'member' && loan.member_id !== req.user.member_id) {
+      return res.status(403).json({ error: 'You can only view your own loans' });
+    }
+
     const repayments = db.prepare(
       'SELECT * FROM loan_repayments WHERE loan_id = ? ORDER BY date DESC'
     ).all(id);
@@ -96,16 +107,22 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// POST /api/loans - create new loan application
-router.post('/', async (req, res) => {
+// POST /api/loans - create new loan or member loan request
+router.post('/', requireRole('admin', 'manager', 'member'), async (req, res) => {
   try {
     const { member_id, amount, interest_rate, term_months, start_date, purpose, penalty_rate } = req.body;
+    const isMemberRequest = req.user.role === 'member';
+    const resolvedMemberId = isMemberRequest ? req.user.member_id : member_id;
 
-    if (!member_id || !amount || !interest_rate || !term_months || !start_date) {
+    if (isMemberRequest && !resolvedMemberId) {
+      return res.status(400).json({ error: 'Your account is not linked to a member profile' });
+    }
+
+    if (!resolvedMemberId || !amount || !interest_rate || !term_months || !start_date) {
       return res.status(400).json({ error: 'member_id, amount, interest_rate, term_months, and start_date are required' });
     }
 
-    const member = db.prepare('SELECT * FROM members WHERE id = ?').get(member_id);
+    const member = db.prepare('SELECT * FROM members WHERE id = ?').get(resolvedMemberId);
     if (!member) {
       return res.status(404).json({ error: 'Member not found' });
     }
@@ -124,7 +141,7 @@ router.post('/', async (req, res) => {
         purpose, penalty_rate, monthly_payment, total_interest, total_amount)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      member_id, amount, interest_rate, term_months, start_date, end_date,
+      resolvedMemberId, amount, interest_rate, term_months, start_date, end_date,
       purpose || null, penalty_rate || parseFloat(defaultPenaltyRate),
       monthly_payment, total_interest, total_amount
     );
@@ -137,8 +154,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/loans/:id - update loan
-router.put('/:id', async (req, res) => {
+// PUT /api/loans/:id - update loan (admin/manager only)
+router.put('/:id', requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, interest_rate, term_months, start_date, purpose, penalty_rate, status } = req.body;
@@ -181,8 +198,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/loans/:id/approve - approve loan
-router.put('/:id/approve', async (req, res) => {
+// PUT /api/loans/:id/approve - approve loan (admin/manager only)
+router.put('/:id/approve', requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { approved_by } = req.body;
@@ -211,8 +228,32 @@ router.put('/:id/approve', async (req, res) => {
   }
 });
 
-// PUT /api/loans/:id/complete - mark loan completed
-router.put('/:id/complete', (req, res) => {
+// PUT /api/loans/:id/reject - reject pending loan (admin/manager only)
+router.put('/:id/reject', requireRole('admin', 'manager'), (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const loan = db.prepare('SELECT * FROM loans WHERE id = ?').get(id);
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan not found' });
+    }
+
+    if (loan.status !== 'pending') {
+      return res.status(400).json({ error: 'Only pending loans can be rejected' });
+    }
+
+    db.prepare("UPDATE loans SET status = 'rejected' WHERE id = ?").run(id);
+
+    const updated = db.prepare('SELECT l.*, m.name AS member_name FROM loans l JOIN members m ON l.member_id = m.id WHERE l.id = ?').get(id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error rejecting loan:', error);
+    res.status(500).json({ error: 'Failed to reject loan' });
+  }
+});
+
+// PUT /api/loans/:id/complete - mark loan completed (admin/manager only)
+router.put('/:id/complete', requireRole('admin', 'manager'), (req, res) => {
   try {
     const { id } = req.params;
 
@@ -231,8 +272,8 @@ router.put('/:id/complete', (req, res) => {
   }
 });
 
-// POST /api/loans/:id/repayment - add repayment
-router.post('/:id/repayment', async (req, res) => {
+// POST /api/loans/:id/repayment - add repayment (admin/manager only)
+router.post('/:id/repayment', requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     const { amount, date, notes } = req.body;
@@ -320,6 +361,11 @@ router.get('/:id/schedule', async (req, res) => {
       return res.status(404).json({ error: 'Loan not found' });
     }
 
+    // Members can only view their own loan schedule
+    if (req.user.role === 'member' && loan.member_id !== req.user.member_id) {
+      return res.status(403).json({ error: 'You can only view your own loan schedule' });
+    }
+
     const schedule = [];
     const monthlyRate = loan.interest_rate / 12 / 100;
     let balance = loan.amount;
@@ -357,8 +403,8 @@ router.get('/:id/schedule', async (req, res) => {
   }
 });
 
-// POST /api/loans/:id/documents - upload document
-router.post('/:id/documents', upload.single('document'), (req, res) => {
+// POST /api/loans/:id/documents - upload document (admin/manager only)
+router.post('/:id/documents', requireRole('admin', 'manager'), upload.single('document'), (req, res) => {
   try {
     const { id } = req.params;
 

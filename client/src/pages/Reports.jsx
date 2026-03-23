@@ -33,6 +33,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useLocale } from '../contexts/LocaleContext';
+import { authFetch, readJsonResponse } from '../api';
 import DateInput from '../components/DateInput';
 import {
   normalizeBalanceSheet,
@@ -161,9 +162,9 @@ export default function Reports() {
   const fetchData = useCallback(async (key, url, setter, transform = (data) => data) => {
     setLoading((prev) => ({ ...prev, [key]: true }));
     try {
-      const res = await fetch(`${API_BASE}${url}`);
+      const res = await authFetch(`${API_BASE}${url}`);
       if (!res.ok) throw new Error(`Failed to fetch ${key}`);
-      const data = await res.json();
+      const data = await readJsonResponse(res, {});
       setter(transform(data));
     } catch (err) {
       console.error(`Error fetching ${key}:`, err);

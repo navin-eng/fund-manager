@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Users, Plus, Edit2, Shield, UserX, UserCheck, Key, X, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { readJsonResponse } from '../api';
 
 export default function UserManagement() {
   const { token } = useAuth();
@@ -19,7 +20,7 @@ export default function UserManagement() {
     password: '',
     name: '',
     email: '',
-    role: 'member',
+    role: 'manager',
   });
   const [createError, setCreateError] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
@@ -40,7 +41,7 @@ export default function UserManagement() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Failed to fetch users');
-      const data = await response.json();
+      const data = await readJsonResponse(response, {});
       setUsers(data.users);
     } catch (err) {
       setError(err.message);
@@ -68,11 +69,11 @@ export default function UserManagement() {
         body: JSON.stringify(createForm),
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response, {});
       if (!response.ok) throw new Error(data.message);
 
       setShowCreateModal(false);
-      setCreateForm({ username: '', password: '', name: '', email: '', role: 'member' });
+      setCreateForm({ username: '', password: '', name: '', email: '', role: 'manager' });
       fetchUsers();
     } catch (err) {
       setCreateError(err.message);
@@ -96,7 +97,7 @@ export default function UserManagement() {
         body: JSON.stringify(editForm),
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response, {});
       if (!response.ok) throw new Error(data.message);
 
       setShowEditModal(false);
@@ -124,7 +125,7 @@ export default function UserManagement() {
         body: JSON.stringify({ resetPassword }),
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response, {});
       if (!response.ok) throw new Error(data.message);
 
       setShowResetModal(false);
@@ -149,7 +150,7 @@ export default function UserManagement() {
         body: JSON.stringify({ status: newStatus }),
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response, {});
       if (!response.ok) throw new Error(data.message);
       fetchUsers();
     } catch (err) {
@@ -223,7 +224,7 @@ export default function UserManagement() {
         </div>
         <button
           onClick={() => {
-            setCreateForm({ username: '', password: '', name: '', email: '', role: 'member' });
+            setCreateForm({ username: '', password: '', name: '', email: '', role: 'manager' });
             setCreateError('');
             setShowCreateModal(true);
           }}
@@ -386,7 +387,6 @@ export default function UserManagement() {
                   onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="member">Member</option>
                   <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
                 </select>
@@ -454,7 +454,6 @@ export default function UserManagement() {
                   onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="member">Member</option>
                   <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
                 </select>

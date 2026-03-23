@@ -1,9 +1,36 @@
 const BASE_URL = '';
 
+// Drop-in replacement for native fetch() that auto-attaches auth token
+export function authFetch(url, options = {}) {
+  const token = localStorage.getItem('auth_token');
+  const headers = { ...options.headers };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return fetch(url, { ...options, headers });
+}
+
+export async function readJsonResponse(response, fallback = null) {
+  const text = await response.text();
+
+  if (!text.trim()) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(`Failed to parse server response (${response.status})`);
+  }
+}
+
 async function fetchAPI(endpoint, options = {}) {
+  const token = localStorage.getItem('auth_token');
+
   const config = {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     ...options,
   };
@@ -16,9 +43,9 @@ async function fetchAPI(endpoint, options = {}) {
   const response = await fetch(`${BASE_URL}${endpoint}`, config);
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({
+    const error = await readJsonResponse(response, {
       message: `Request failed with status ${response.status}`,
-    }));
+    });
     throw new Error(error.message || error.error || 'Something went wrong');
   }
 
@@ -27,7 +54,7 @@ async function fetchAPI(endpoint, options = {}) {
     return null;
   }
 
-  return response.json();
+  return readJsonResponse(response, null);
 }
 
 // Members
@@ -68,6 +95,9 @@ export const createLoan = (data) =>
 
 export const approveLoan = (id, data) =>
   fetchAPI(`/api/loans/${id}/approve`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const rejectLoan = (id, data = {}) =>
+  fetchAPI(`/api/loans/${id}/reject`, { method: 'PUT', body: JSON.stringify(data) });
 
 export const addRepayment = (id, data) =>
   fetchAPI(`/api/loans/${id}/repayment`, { method: 'POST', body: JSON.stringify(data) });

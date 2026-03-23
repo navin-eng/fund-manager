@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { authFetch, readJsonResponse } from '../api';
 import {
   Banknote,
   Percent,
@@ -18,6 +19,7 @@ import {
   CircleDollarSign,
   Plus,
   X,
+  XCircle,
   ChevronDown,
   ChevronUp,
   Image,
@@ -26,10 +28,12 @@ import {
 import {
   getLoan,
   approveLoan,
+  rejectLoan,
   addRepayment,
   getLoanSchedule,
   uploadLoanDocument,
 } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import DateInput from '../components/DateInput';
 
@@ -38,6 +42,7 @@ const STATUS_BADGES = {
   active: 'bg-blue-100 text-blue-800 border border-blue-200',
   completed: 'bg-green-100 text-green-800 border border-green-200',
   defaulted: 'bg-red-100 text-red-800 border border-red-200',
+  rejected: 'bg-rose-100 text-rose-800 border border-rose-200',
 };
 
 const STATUS_ICONS = {
@@ -45,6 +50,7 @@ const STATUS_ICONS = {
   active: Banknote,
   completed: CheckCircle,
   defaulted: AlertTriangle,
+  rejected: XCircle,
 };
 
 function formatCurrency(amount) {
@@ -98,7 +104,9 @@ export default function LoanDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const { formatDate: localeFormatDate, getTodayDateInputValue } = useLocale();
+  const { user } = useAuth();
+  const { formatDate: localeFormatDate, getTodayDateInputValue, t } = useLocale();
+  const isStaff = user?.role === 'admin' || user?.role === 'manager';
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -113,6 +121,7 @@ export default function LoanDetail() {
 
   // Action states
   const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [completing, setCompleting] = useState(false);
 
   // Repayment form
@@ -156,9 +165,9 @@ export default function LoanDetail() {
   // Fetch penalty check
   const fetchPenalty = useCallback(async () => {
     try {
-      const res = await fetch(`/api/loans/${id}/penalty-check`);
+      const res = await authFetch(`/api/loans/${id}/penalty-check`);
       if (res.ok) {
-        const data = await res.json();
+        const data = await readJsonResponse(res, {});
         setPenalty(data);
       }
     } catch {
@@ -187,13 +196,26 @@ export default function LoanDetail() {
     }
   };
 
+  const handleReject = async () => {
+    if (!window.confirm('Are you sure you want to reject this loan request?')) return;
+    setRejecting(true);
+    try {
+      await rejectLoan(id);
+      fetchLoan();
+    } catch (err) {
+      alert('Failed to reject: ' + err.message);
+    } finally {
+      setRejecting(false);
+    }
+  };
+
   const handleComplete = async () => {
     if (!window.confirm('Mark this loan as completed?')) return;
     setCompleting(true);
     try {
-      const res = await fetch(`/api/loans/${id}/complete`, { method: 'PUT' });
+      const res = await authFetch(`/api/loans/${id}/complete`, { method: 'PUT' });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+        const err = await readJsonResponse(res, {});
         throw new Error(err.message || 'Failed to mark complete');
       }
       fetchLoan();
@@ -364,21 +386,35 @@ export default function LoanDetail() {
 
         {/* Actions */}
         <div className="flex items-center gap-2 print:hidden">
-          {loan.status === 'pending' && (
-            <button
-              onClick={handleApprove}
-              disabled={approving}
-              className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              {approving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle className="h-4 w-4" />
-              )}
-              Approve Loan
-            </button>
+          {isStaff && loan.status === 'pending' && (
+            <>
+              <button
+                onClick={handleApprove}
+                disabled={approving || rejecting}
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {approving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                Approve Loan
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={approving || rejecting}
+                className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 transition-colors disabled:opacity-50"
+              >
+                {rejecting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="h-4 w-4" />
+                )}
+                {t('loans.reject')}
+              </button>
+            </>
           )}
-          {loan.status === 'active' && (
+          {isStaff && loan.status === 'active' && (
             <button
               onClick={handleComplete}
               disabled={completing}
@@ -477,6 +513,22 @@ export default function LoanDetail() {
         </div>
       )}
 
+      {loan.status === 'rejected' && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-rose-100 p-2">
+              <XCircle className="h-5 w-5 text-rose-600" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-rose-800">Loan Request Rejected</h3>
+              <p className="mt-1 text-sm text-rose-700">
+                This request was rejected and will not move into repayment or disbursement.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Repayment Section */}
       <Section
         title="Repayments"
@@ -485,7 +537,7 @@ export default function LoanDetail() {
       >
         <div className="p-5 space-y-4">
           {/* Add Repayment Button/Form */}
-          {loan.status === 'active' && (
+          {isStaff && loan.status === 'active' && (
             <div className="print:hidden">
               {!showRepaymentForm ? (
                 <button
@@ -720,28 +772,30 @@ export default function LoanDetail() {
       <Section title="Documents" icon={FileText} badge={documents.length > 0 ? documents.length : undefined}>
         <div className="p-5 space-y-4">
           {/* Upload Form */}
-          <div className="print:hidden">
-            <label className="inline-flex items-center gap-2 cursor-pointer rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-5 py-3 text-sm font-medium text-slate-600 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors">
-              {uploading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4" />
+          {isStaff && (
+            <div className="print:hidden">
+              <label className="inline-flex items-center gap-2 cursor-pointer rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-5 py-3 text-sm font-medium text-slate-600 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 transition-colors">
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {uploading ? 'Uploading...' : 'Upload Document'}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+              <p className="mt-1 text-xs text-slate-400">Accepts images and PDF files</p>
+              {uploadError && (
+                <p className="mt-1 text-xs text-red-600 font-medium">{uploadError}</p>
               )}
-              {uploading ? 'Uploading...' : 'Upload Document'}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,.pdf"
-                onChange={handleFileUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-            </label>
-            <p className="mt-1 text-xs text-slate-400">Accepts images and PDF files</p>
-            {uploadError && (
-              <p className="mt-1 text-xs text-red-600 font-medium">{uploadError}</p>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Documents List */}
           {documents.length > 0 ? (

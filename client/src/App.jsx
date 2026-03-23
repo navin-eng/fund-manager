@@ -41,25 +41,29 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
+              {/* Routes accessible to all authenticated users (members see filtered data) */}
               <Route path="/" element={<Dashboard />} />
-              <Route path="/members" element={<MemberList />} />
-              <Route path="/members/new" element={<MemberForm />} />
-              <Route path="/members/:id" element={<MemberDetail />} />
-              <Route path="/members/:id/edit" element={<MemberForm />} />
               <Route path="/savings" element={<SavingsList />} />
-              <Route path="/savings/new" element={<SavingsForm />} />
-              <Route path="/savings/:id/edit" element={<SavingsForm />} />
-              <Route path="/savings/bulk" element={<BulkSavingsForm />} />
               <Route path="/loans" element={<LoanList />} />
               <Route path="/loans/new" element={<LoanForm />} />
               <Route path="/loans/:id" element={<LoanDetail />} />
-              <Route path="/fund-ledger" element={<FundLedger />} />
-              <Route path="/income" element={<IncomePeriods />} />
-              <Route path="/distributions" element={<Distributions />} />
-              <Route path="/reserve" element={<ReserveFund />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/backup" element={<BackupRestore />} />
+
+              <Route element={<ProtectedRoute roles={['admin', 'manager']} />}>
+                <Route path="/members" element={<MemberList />} />
+                <Route path="/members/:id" element={<MemberDetail />} />
+                <Route path="/members/new" element={<MemberForm />} />
+                <Route path="/members/:id/edit" element={<MemberForm />} />
+                <Route path="/savings/new" element={<SavingsForm />} />
+                <Route path="/savings/:id/edit" element={<SavingsForm />} />
+                <Route path="/savings/bulk" element={<BulkSavingsForm />} />
+                <Route path="/fund-ledger" element={<FundLedger />} />
+                <Route path="/income" element={<IncomePeriods />} />
+                <Route path="/distributions" element={<Distributions />} />
+                <Route path="/reserve" element={<ReserveFund />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/backup" element={<BackupRestore />} />
+              </Route>
               <Route element={<ProtectedRoute roles={['admin']} />}>
                 <Route path="/users" element={<UserManagement />} />
               </Route>

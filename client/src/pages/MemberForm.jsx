@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
+import { authFetch, readJsonResponse } from '../api';
 import DateInput from '../components/DateInput';
 
 export default function MemberForm() {
@@ -51,8 +52,8 @@ export default function MemberForm() {
   const fetchMember = async () => {
     try {
       setFetching(true);
-      const response = await fetch(`/api/members/${id}`);
-      const data = await response.json();
+      const response = await authFetch(`/api/members/${id}`);
+      const data = await readJsonResponse(response, {});
       setFormData({
         name: data.name || '',
         email: data.email || '',
@@ -146,18 +147,18 @@ export default function MemberForm() {
         fd.append('photo_url', existingPhotoUrl);
       }
 
-      const response = await fetch(url, {
+      const response = await authFetch(url, {
         method,
         body: fd,
         // Do NOT set Content-Type header — browser sets it with boundary for multipart
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
+        const errData = await readJsonResponse(response, {});
         throw new Error(errData.error || errData.message || 'Failed to save member');
       }
 
-      const result = await response.json().catch(() => ({}));
+      const result = await readJsonResponse(response, {});
 
       if (isEditing) {
         alert('Member updated successfully!');

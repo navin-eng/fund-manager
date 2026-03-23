@@ -13,6 +13,92 @@ const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
+function loansTableSupportsRejectedStatus() {
+  const table = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'loans'"
+  ).get();
+
+  return Boolean(table?.sql?.includes("'rejected'"));
+}
+
+function migrateLoansTableForRejectedStatus() {
+  if (loansTableSupportsRejectedStatus()) {
+    return;
+  }
+
+  db.pragma('foreign_keys = OFF');
+
+  try {
+    const migrate = db.transaction(() => {
+      db.exec(`
+        CREATE TABLE loans_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          member_id INTEGER NOT NULL,
+          amount REAL NOT NULL,
+          interest_rate REAL NOT NULL,
+          term_months INTEGER NOT NULL,
+          start_date TEXT NOT NULL,
+          end_date TEXT,
+          status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'active', 'completed', 'defaulted', 'rejected')),
+          purpose TEXT,
+          penalty_rate REAL DEFAULT 2.0,
+          approved_date TEXT,
+          approved_by TEXT,
+          monthly_payment REAL,
+          total_interest REAL,
+          total_amount REAL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (member_id) REFERENCES members(id)
+        );
+
+        INSERT INTO loans_new (
+          id,
+          member_id,
+          amount,
+          interest_rate,
+          term_months,
+          start_date,
+          end_date,
+          status,
+          purpose,
+          penalty_rate,
+          approved_date,
+          approved_by,
+          monthly_payment,
+          total_interest,
+          total_amount,
+          created_at
+        )
+        SELECT
+          id,
+          member_id,
+          amount,
+          interest_rate,
+          term_months,
+          start_date,
+          end_date,
+          status,
+          purpose,
+          penalty_rate,
+          approved_date,
+          approved_by,
+          monthly_payment,
+          total_interest,
+          total_amount,
+          created_at
+        FROM loans;
+
+        DROP TABLE loans;
+        ALTER TABLE loans_new RENAME TO loans;
+      `);
+    });
+
+    migrate();
+  } finally {
+    db.pragma('foreign_keys = ON');
+  }
+}
+
 function initializeDB() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS members (
@@ -49,7 +135,7 @@ function initializeDB() {
       term_months INTEGER NOT NULL,
       start_date TEXT NOT NULL,
       end_date TEXT,
-      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'active', 'completed', 'defaulted')),
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'active', 'completed', 'defaulted', 'rejected')),
       purpose TEXT,
       penalty_rate REAL DEFAULT 2.0,
       approved_date TEXT,
@@ -167,6 +253,7 @@ function initializeDB() {
   // Add member_no and name_np columns if they don't exist (migration)
   try { db.exec('ALTER TABLE members ADD COLUMN member_no TEXT'); } catch (e) { }
   try { db.exec('ALTER TABLE members ADD COLUMN name_np TEXT'); } catch (e) { }
+  migrateLoansTableForRejectedStatus();
 
   const defaultSettings = [
     { key: 'fiscal_year_start', value: '01' },

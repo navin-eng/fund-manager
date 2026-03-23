@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, ArrowLeft, Loader2, Calendar } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
+import { authFetch, readJsonResponse } from '../api';
 import DateInput from '../components/DateInput';
 
 export default function BulkSavingsForm() {
@@ -29,15 +30,15 @@ export default function BulkSavingsForm() {
     try {
       setLoading(true);
       // Fetch settings for minimum savings
-      const setRes = await fetch('/api/settings');
-      const settingsData = await setRes.json();
+      const setRes = await authFetch('/api/settings');
+      const settingsData = await readJsonResponse(setRes, {});
       setSettings(settingsData);
       
       const defaultAmount = settingsData.minimum_savings || 1000;
 
       // Fetch active members
-      const memRes = await fetch('/api/members?status=active');
-      const activeMembers = await memRes.json();
+      const memRes = await authFetch('/api/members?status=active');
+      const activeMembers = await readJsonResponse(memRes, []);
       
       setMembers(activeMembers);
       
@@ -106,13 +107,13 @@ export default function BulkSavingsForm() {
 
     try {
       setSubmitting(true);
-      const res = await fetch('/api/savings/bulk', {
+      const res = await authFetch('/api/savings/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       
-      const data = await res.json();
+      const data = await readJsonResponse(res, {});
       
       if (!res.ok) {
         throw new Error(data.error || 'Failed to submit bulk savings');

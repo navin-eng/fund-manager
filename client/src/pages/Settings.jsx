@@ -16,6 +16,7 @@ import {
   Mail,
 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
+import { authFetch, readJsonResponse } from '../api';
 import DateInput from '../components/DateInput';
 
 const API_BASE = '';
@@ -147,9 +148,9 @@ export default function Settings() {
   useEffect(() => {
     async function fetchSettings() {
       try {
-        const res = await fetch(`${API_BASE}/api/settings`);
+        const res = await authFetch(`${API_BASE}/api/settings`);
         if (!res.ok) throw new Error('Failed to load settings');
-        const data = await res.json();
+        const data = await readJsonResponse(res, {});
         setSettings({
           organization_name: data.organization_name || '',
           currency: data.currency || 'NPR',
@@ -180,9 +181,9 @@ export default function Settings() {
   async function fetchAdjustments() {
     setAdjustmentsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/balance-adjustments`);
+      const res = await authFetch(`${API_BASE}/api/balance-adjustments`);
       if (!res.ok) throw new Error('Failed to load adjustments');
-      const data = await res.json();
+      const data = await readJsonResponse(res, {});
       setAdjustments(Array.isArray(data) ? data : data.adjustments || []);
     } catch (err) {
       console.error('Error loading adjustments:', err);
@@ -201,13 +202,13 @@ export default function Settings() {
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch(`${API_BASE}/api/settings`, {
+      const res = await authFetch(`${API_BASE}/api/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Failed to save settings' }));
+        const err = await readJsonResponse(res, { message: 'Failed to save settings' });
         throw new Error(err.message || 'Failed to save settings');
       }
       if (settings.calendar) setCalendar(settings.calendar);
@@ -230,7 +231,7 @@ export default function Settings() {
     setSubmittingAdjustment(true);
     setAdjustmentMessage(null);
     try {
-      const res = await fetch(`${API_BASE}/api/balance-adjustments`, {
+      const res = await authFetch(`${API_BASE}/api/balance-adjustments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -241,7 +242,7 @@ export default function Settings() {
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Failed to submit adjustment' }));
+        const err = await readJsonResponse(res, { message: 'Failed to submit adjustment' });
         throw new Error(err.message || 'Failed to submit adjustment');
       }
       setAdjustmentMessage({ type: 'success', text: 'Balance adjustment recorded successfully' });

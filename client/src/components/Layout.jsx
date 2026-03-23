@@ -80,16 +80,16 @@ export default function Layout() {
 
   const navigation = useMemo(() => [
     { name: t('nav.dashboard'), href: '/', icon: LayoutDashboard, section: 'Workspace', description: 'Overview, balances, and live fund signals' },
-    { name: t('nav.members'), href: '/members', icon: Users, section: 'Workspace', description: 'Profiles, savings activity, and member access' },
+    { name: t('nav.members'), href: '/members', icon: Users, section: 'Workspace', staffOnly: true, description: 'Profiles, savings activity, and member access' },
     { name: t('nav.savings'), href: '/savings', icon: PiggyBank, section: 'Workspace', description: 'Deposits, withdrawals, and transaction review' },
     { name: t('nav.loans'), href: '/loans', icon: Landmark, section: 'Workspace', description: 'Borrowing pipeline, repayment status, and balances' },
-    { name: t('nav.fundLedger'), href: '/fund-ledger', icon: BookOpen, section: 'Accounting', description: 'Fund entries, reconciliations, and adjustments' },
-    { name: t('nav.income'), href: '/income', icon: TrendingUp, section: 'Accounting', description: 'Income periods and fund performance windows' },
-    { name: t('nav.distributions'), href: '/distributions', icon: Gift, section: 'Accounting', description: 'Distribution cycles and member allocations' },
-    { name: t('nav.reserveFund'), href: '/reserve', icon: Lock, section: 'Accounting', description: 'Reserve planning, protection, and reserve history' },
-    { name: t('nav.reports'), href: '/reports', icon: BarChart3, section: 'Accounting', description: 'Cross-fund summaries and printable analysis' },
-    { name: t('nav.backup'), href: '/backup', icon: Database, section: 'Control', description: 'Backups, restores, and export operations' },
-    { name: t('nav.settings'), href: '/settings', icon: Settings, section: 'Control', description: 'System preferences, branding, and behavior' },
+    { name: t('nav.fundLedger'), href: '/fund-ledger', icon: BookOpen, section: 'Accounting', staffOnly: true, description: 'Fund entries, reconciliations, and adjustments' },
+    { name: t('nav.income'), href: '/income', icon: TrendingUp, section: 'Accounting', staffOnly: true, description: 'Income periods and fund performance windows' },
+    { name: t('nav.distributions'), href: '/distributions', icon: Gift, section: 'Accounting', staffOnly: true, description: 'Distribution cycles and member allocations' },
+    { name: t('nav.reserveFund'), href: '/reserve', icon: Lock, section: 'Accounting', staffOnly: true, description: 'Reserve planning, protection, and reserve history' },
+    { name: t('nav.reports'), href: '/reports', icon: BarChart3, section: 'Accounting', staffOnly: true, description: 'Cross-fund summaries and printable analysis' },
+    { name: t('nav.backup'), href: '/backup', icon: Database, section: 'Control', staffOnly: true, description: 'Backups, restores, and export operations' },
+    { name: t('nav.settings'), href: '/settings', icon: Settings, section: 'Control', staffOnly: true, description: 'System preferences, branding, and behavior' },
     { name: t('nav.users'), href: '/users', icon: Shield, adminOnly: true, section: 'Control', description: 'Roles, permissions, and account oversight' },
   ], [t]);
 
@@ -113,9 +113,11 @@ export default function Layout() {
 
   const pageTitle = getPageTitle(location.pathname, t, pageTitles);
 
-  const filteredNavigation = navigation.filter(
-    (item) => !item.adminOnly || (user && user.role === 'admin')
-  );
+  const filteredNavigation = navigation.filter((item) => {
+    if (item.adminOnly && (!user || user.role !== 'admin')) return false;
+    if (item.staffOnly && user && user.role === 'member') return false;
+    return true;
+  });
   const navigationSections = useMemo(
     () => buildNavigationSections(filteredNavigation),
     [filteredNavigation]

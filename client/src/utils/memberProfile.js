@@ -115,7 +115,16 @@ export function buildMemberActivity({ savingsHistory, loans, repayments }) {
     id: `loan-${loan.id}`,
     title: `Loan ${loan.status || 'recorded'}`,
     amount: toNumber(loan.amount),
-    accent: loan.status === 'completed' ? 'sky' : loan.status === 'active' || loan.status === 'approved' ? 'amber' : 'slate',
+    accent:
+      loan.status === 'completed'
+        ? 'sky'
+        : loan.status === 'active' || loan.status === 'approved'
+          ? 'amber'
+          : loan.status === 'pending'
+            ? 'indigo'
+            : loan.status === 'rejected'
+              ? 'rose'
+              : 'slate',
     date: loan.approvedDate || loan.startDate,
     timestamp: loan.created_at || loan.createdAt || loan.approvedDate || loan.startDate,
     subtitle: loan.purpose || `${toNumber(loan.interestRate)}% interest for ${toNumber(loan.term_months ?? loan.term)} months`,
@@ -147,14 +156,16 @@ export function buildMemberProfileData(memberData, statementData) {
   const latestSavings = getLatestEntry(savingsHistory);
   const latestDeposit = getLatestEntry(savingsHistory, (transaction) => transaction.type === 'deposit');
   const latestWithdrawal = getLatestEntry(savingsHistory, (transaction) => transaction.type === 'withdrawal');
+  const fundedStatuses = new Set(['approved', 'active', 'completed', 'defaulted']);
+  const fundedLoans = loans.filter((loan) => fundedStatuses.has(loan.status));
   const activeLoans = loans.filter((loan) => loan.status === 'active' || loan.status === 'approved');
   const totalLoanRepayable = toNumber(
     statement.summary.totalLoanRepayable,
-    loans.reduce((sum, loan) => sum + toNumber(loan.totalRepayable), 0)
+    fundedLoans.reduce((sum, loan) => sum + toNumber(loan.totalRepayable), 0)
   );
   const totalLoanAmount = toNumber(
     statement.summary.totalLoanAmount,
-    loans.reduce((sum, loan) => sum + toNumber(loan.amount), 0)
+    fundedLoans.reduce((sum, loan) => sum + toNumber(loan.amount), 0)
   );
   const totalRepayments = toNumber(
     statement.summary.totalRepayments,
@@ -169,7 +180,7 @@ export function buildMemberProfileData(memberData, statementData) {
     statement.summary.totalPenaltyPaid,
     loans.reduce((sum, loan) => sum + loan.penaltyPaid, 0)
   );
-  const totalLoansTaken = toNumber(statement.summary.totalLoansTaken, loans.length);
+  const totalLoansTaken = toNumber(statement.summary.totalLoansTaken, fundedLoans.length);
 
   const totals = {
     totalSavings: toNumber(member?.totalSavings, statement.summary.netSavings),
@@ -179,13 +190,17 @@ export function buildMemberProfileData(memberData, statementData) {
     totalLoanAmount,
     totalLoanRepayable,
     totalRepayments,
-    outstandingBalance: toNumber(statement.summary.outstandingBalance, loans.reduce((sum, loan) => sum + loan.remainingBalance, 0)),
+    outstandingBalance: toNumber(
+      statement.summary.outstandingBalance,
+      fundedLoans.reduce((sum, loan) => sum + loan.remainingBalance, 0)
+    ),
     totalPrincipalPaid,
     totalInterestPaid,
     totalPenaltyPaid,
     activeLoans: toNumber(statement.summary.activeLoans, activeLoans.length),
     completedLoans: toNumber(statement.summary.completedLoans, loans.filter((loan) => loan.status === 'completed').length),
     pendingLoans: toNumber(statement.summary.pendingLoans, loans.filter((loan) => loan.status === 'pending').length),
+    rejectedLoans: toNumber(statement.summary.rejectedLoans, loans.filter((loan) => loan.status === 'rejected').length),
     repaymentCount: toNumber(statement.summary.repaymentCount, statement.repayments.length),
     savingsTransactionCount: toNumber(statement.summary.savingsTransactionCount, savingsHistory.length),
     averageDeposit: toNumber(statement.summary.averageDeposit),

@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLocale } from '../contexts/LocaleContext';
+import { useAuth } from '../contexts/AuthContext';
 import { normalizeMember } from '../utils/apiTransforms';
+import { authFetch, readJsonResponse } from '../api';
 import {
   ChevronLeft,
   ChevronRight,
   Eye,
   Inbox,
+  Key,
   Landmark,
   Loader2,
   Pencil,
@@ -55,12 +58,32 @@ function SummaryCard({ icon: Icon, label, value, accent }) {
 
 export default function MemberList() {
   const { formatDate: localeFormatDate, formatCurrency: localeFormatCurrency } = useLocale();
+  const { user: currentUser } = useAuth();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [confirmMemberId, setConfirmMemberId] = useState(null);
+  const [bulkCredResult, setBulkCredResult] = useState(null);
+  const [generatingAll, setGeneratingAll] = useState(false);
+
+  const isStaff = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+
+  const handleGenerateAllCredentials = async () => {
+    if (!confirm('Generate user accounts for all members who don\'t have one yet?')) return;
+    setGeneratingAll(true);
+    try {
+      const res = await authFetch('/api/members/generate-all-credentials', { method: 'POST' });
+      const data = await readJsonResponse(res, {});
+      if (!res.ok) throw new Error(data.error || 'Failed to generate credentials');
+      setBulkCredResult(data);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGeneratingAll(false);
+    }
+  };
 
   useEffect(() => {
     fetchMembers();
@@ -69,12 +92,12 @@ export default function MemberList() {
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/members');
+      const response = await authFetch('/api/members');
       if (!response.ok) {
         throw new Error('Failed to fetch members');
       }
 
-      const data = await response.json();
+      const data = await readJsonResponse(response, []);
       setMembers(Array.isArray(data) ? data.map(normalizeMember).filter(Boolean) : []);
     } catch (error) {
       console.error('Failed to fetch members:', error);
@@ -121,7 +144,7 @@ export default function MemberList() {
 
   const handleStatusUpdate = async (memberId, status) => {
     try {
-      const response = await fetch(`/api/members/${memberId}`, {
+      const response = await authFetch(`/api/members/${memberId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -168,13 +191,25 @@ export default function MemberList() {
             </p>
           </div>
 
-          <Link
-            to="/members/new"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700 sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Add Member
-          </Link>
+          <div className="flex items-center gap-2">
+            {isStaff && (
+              <button
+                onClick={handleGenerateAllCredentials}
+                disabled={generatingAll}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-medium text-violet-700 transition-colors hover:bg-violet-100 disabled:opacity-60 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-400 sm:w-auto"
+              >
+                <Key className="h-4 w-4" />
+                {generatingAll ? 'Generating...' : 'Generate All Credentials'}
+              </button>
+            )}
+            <Link
+              to="/members/new"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700 sm:w-auto"
+            >
+              <Plus className="h-4 w-4" />
+              Add Member
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -556,6 +591,49 @@ export default function MemberList() {
           </>
         )}
       </section>
+
+      {/* Bulk Credentials Result Modal */}
+      {bulkCredResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[80vh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-slate-800">
+            <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800 dark:text-white">
+                <Key className="h-5 w-5 text-violet-600" />
+                {bulkCredResult.message}
+              </h2>
+            </div>
+            <div className="max-h-[50vh] overflow-y-auto p-6">
+              {bulkCredResult.generated?.length > 0 ? (
+                <div className="space-y-3">
+                  <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+                    Save these credentials. Passwords cannot be retrieved later.
+                  </p>
+                  {bulkCredResult.generated.map((cred) => (
+                    <div key={cred.member_id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-700/50">
+                      <p className="text-sm font-medium text-slate-800 dark:text-white">{cred.member_name}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Username: <code className="font-bold text-slate-700 dark:text-slate-200">{cred.username}</code>
+                        {' / '}
+                        Password: <code className="font-bold text-slate-700 dark:text-slate-200">{cred.password}</code>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-sm text-slate-500">All members already have user accounts.</p>
+              )}
+            </div>
+            <div className="border-t border-slate-200 px-6 py-4 dark:border-slate-700">
+              <button
+                onClick={() => setBulkCredResult(null)}
+                className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

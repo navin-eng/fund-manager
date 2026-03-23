@@ -1,19 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
+const { requireRole } = require('../middleware/auth');
 
 // GET /api/savings/summary - must be before /:id route
 router.get('/summary', (req, res) => {
   try {
+    const isMember = req.user.role === 'member';
+    const memberId = req.user.member_id;
+
+    const memberFilter = isMember ? ' AND member_id = ?' : '';
+    const memberParams = isMember ? [memberId] : [];
+
     const totalDeposits = db.prepare(
-      "SELECT COALESCE(SUM(amount), 0) AS total FROM savings WHERE type = 'deposit'"
-    ).get().total;
+      `SELECT COALESCE(SUM(amount), 0) AS total FROM savings WHERE type = 'deposit'${memberFilter}`
+    ).get(...memberParams).total;
 
     const totalWithdrawals = db.prepare(
-      "SELECT COALESCE(SUM(amount), 0) AS total FROM savings WHERE type = 'withdrawal'"
-    ).get().total;
+      `SELECT COALESCE(SUM(amount), 0) AS total FROM savings WHERE type = 'withdrawal'${memberFilter}`
+    ).get(...memberParams).total;
 
-    const byMember = db.prepare(`
+    let byMemberQuery = `
       SELECT
         m.id AS member_id,
         m.name AS member_name,
@@ -23,9 +30,17 @@ router.get('/summary', (req, res) => {
       FROM members m
       LEFT JOIN savings s ON s.member_id = m.id
       WHERE m.status = 'active'
-      GROUP BY m.id
-      ORDER BY m.name ASC
-    `).all();
+    `;
+    const byMemberParams = [];
+
+    if (isMember) {
+      byMemberQuery += ' AND m.id = ?';
+      byMemberParams.push(memberId);
+    }
+
+    byMemberQuery += ' GROUP BY m.id ORDER BY m.name ASC';
+
+    const byMember = db.prepare(byMemberQuery).all(...byMemberParams);
 
     res.json({
       total_deposits: totalDeposits,
@@ -39,7 +54,7 @@ router.get('/summary', (req, res) => {
   }
 });
 
-// GET /api/savings - list all savings transactions
+// GET /api/savings - list all savings transactions (members see only their own)
 router.get('/', (req, res) => {
   try {
     const { member_id, date_from, date_to, type } = req.query;
@@ -52,7 +67,11 @@ router.get('/', (req, res) => {
     `;
     const params = [];
 
-    if (member_id) {
+    // Members can only see their own savings
+    if (req.user.role === 'member') {
+      query += ' AND s.member_id = ?';
+      params.push(req.user.member_id);
+    } else if (member_id) {
       query += ' AND s.member_id = ?';
       params.push(member_id);
     }
@@ -95,6 +114,11 @@ router.get('/:id', (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
+    // Members can only view their own transactions
+    if (req.user.role === 'member' && transaction.member_id !== req.user.member_id) {
+      return res.status(403).json({ error: 'You can only view your own transactions' });
+    }
+
     res.json(transaction);
   } catch (error) {
     console.error('Error fetching saving transaction:', error);
@@ -102,8 +126,8 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// POST /api/savings - create saving transaction
-router.post('/', (req, res) => {
+// POST /api/savings - create saving transaction (admin/manager only)
+router.post('/', requireRole('admin', 'manager'), (req, res) => {
   try {
     const { member_id, amount, type, date, notes } = req.body;
 
@@ -146,8 +170,8 @@ router.post('/', (req, res) => {
   }
 });
 
-// POST /api/savings/bulk - bulk create saving transactions
-router.post('/bulk', (req, res) => {
+// POST /api/savings/bulk - bulk create saving transactions (admin/manager only)
+router.post('/bulk', requireRole('admin', 'manager'), (req, res) => {
   try {
     const transactions = req.body; // Expects an array: [{ member_id, amount, date, notes }]
     
@@ -185,8 +209,8 @@ router.post('/bulk', (req, res) => {
   }
 });
 
-// PUT /api/savings/:id - update transaction
-router.put('/:id', (req, res) => {
+// PUT /api/savings/:id - update transaction (admin/manager only)
+router.put('/:id', requireRole('admin', 'manager'), (req, res) => {
   try {
     const { id } = req.params;
     const { member_id, amount, type, date, notes } = req.body;
@@ -216,8 +240,8 @@ router.put('/:id', (req, res) => {
   }
 });
 
-// DELETE /api/savings/:id - delete transaction
-router.delete('/:id', (req, res) => {
+// DELETE /api/savings/:id - delete transaction (admin/manager only)
+router.delete('/:id', requireRole('admin', 'manager'), (req, res) => {
   try {
     const { id } = req.params;
 

@@ -434,7 +434,17 @@ export default function MemberDashboard() {
                           Taken {formatDate(loan.approvedDate || loan.startDate)} · {formatDateTime(loan.created_at || loan.createdAt)}
                         </p>
                       </div>
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
+                        loan.status === 'active' || loan.status === 'approved'
+                          ? 'bg-amber-50 text-amber-700'
+                          : loan.status === 'completed'
+                            ? 'bg-sky-50 text-sky-700'
+                            : loan.status === 'pending'
+                              ? 'bg-indigo-50 text-indigo-700'
+                              : loan.status === 'rejected'
+                                ? 'bg-rose-50 text-rose-700'
+                                : 'bg-white text-slate-600'
+                      }`}>
                         {loan.status || '—'}
                       </span>
                     </div>
