@@ -259,42 +259,67 @@ export default function MemberDashboard() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <SummaryCard
-          icon={PiggyBank}
-          label="Savings Balance"
-          value={formatCurrency(totals.totalSavings)}
-          helper={`${formatCurrency(totals.totalDeposits)} deposited`}
-          iconClass="text-indigo-600 bg-indigo-50"
-        />
-        <SummaryCard
-          icon={CreditCard}
-          label="Loan Count"
-          value={String(totals.totalLoansTaken)}
-          helper="Total loans taken"
-          iconClass="text-amber-600 bg-amber-50"
-        />
-        <SummaryCard
-          icon={CircleDollarSign}
-          label="Total Borrowed"
-          value={formatCurrency(totals.totalLoanAmount)}
-          helper={`${formatCurrency(totals.totalLoanRepayable)} repayable total`}
-          iconClass="text-sky-600 bg-sky-50"
-        />
-        <SummaryCard
-          icon={ArrowDownCircle}
-          label="Total Repaid"
-          value={formatCurrency(totals.totalRepayments)}
-          helper={`${formatCurrency(totals.totalInterestPaid)} interest paid`}
-          iconClass="text-emerald-600 bg-emerald-50"
-        />
-        <SummaryCard
-          icon={Wallet}
-          label="Remaining Balance"
-          value={formatCurrency(totals.outstandingBalance)}
-          helper={`${totals.activeLoans} active loan${totals.activeLoans === 1 ? '' : 's'}`}
-          iconClass="text-rose-600 bg-rose-50"
-        />
+      {/* Savings Summary */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400 px-1">Savings</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <SummaryCard
+            icon={PiggyBank}
+            label="Savings Balance"
+            value={formatCurrency(totals.totalSavings)}
+            helper={`${formatCurrency(totals.totalDeposits)} deposited`}
+            iconClass="text-indigo-600 bg-indigo-50"
+          />
+          <SummaryCard
+            icon={ArrowUpCircle}
+            label="Total Deposits"
+            value={formatCurrency(totals.totalDeposits)}
+            helper={`${totals.savingsTransactionCount} transactions`}
+            iconClass="text-emerald-600 bg-emerald-50"
+          />
+          <SummaryCard
+            icon={ArrowDownCircle}
+            label="Total Withdrawals"
+            value={formatCurrency(totals.totalWithdrawals)}
+            helper={totals.lastSavingsDate ? `Last: ${formatDate(totals.lastSavingsDate)}` : ''}
+            iconClass="text-rose-600 bg-rose-50"
+          />
+        </div>
+      </div>
+
+      {/* Loan Summary */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400 px-1">Loans</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            icon={CreditCard}
+            label="Loan Count"
+            value={String(totals.totalLoansTaken)}
+            helper={`${totals.activeLoans} active`}
+            iconClass="text-amber-600 bg-amber-50"
+          />
+          <SummaryCard
+            icon={CircleDollarSign}
+            label="Total Borrowed"
+            value={formatCurrency(totals.totalLoanAmount)}
+            helper={`${formatCurrency(totals.totalLoanRepayable)} repayable total`}
+            iconClass="text-sky-600 bg-sky-50"
+          />
+          <SummaryCard
+            icon={ArrowDownCircle}
+            label="Total Repaid"
+            value={formatCurrency(totals.totalRepayments)}
+            helper={`${formatCurrency(totals.totalInterestPaid)} interest paid`}
+            iconClass="text-emerald-600 bg-emerald-50"
+          />
+          <SummaryCard
+            icon={Wallet}
+            label="Outstanding"
+            value={formatCurrency(totals.outstandingBalance)}
+            helper={`${totals.activeLoans} active loan${totals.activeLoans === 1 ? '' : 's'}`}
+            iconClass="text-rose-600 bg-rose-50"
+          />
+        </div>
       </div>
 
       <MemberInfographics totals={totals} formatCurrency={formatCurrency} />

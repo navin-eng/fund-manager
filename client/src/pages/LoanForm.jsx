@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { createLoan, getMembers, getSettings } from '../api';
 import { useLocale } from '../contexts/LocaleContext';
+import DateInput from '../components/DateInput';
 
 // formatCurrency is now handled by useLocale hook
 
@@ -38,7 +39,7 @@ function calculateEMI(principal, annualRate, termMonths) {
 }
 
 export default function LoanForm() {
-  const { formatCurrency, getTodayDateInputValue } = useLocale();
+  const { formatCurrency, getTodayDateInputValue, t } = useLocale();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedMemberId = searchParams.get('member') || '';
@@ -165,8 +166,8 @@ export default function LoanForm() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">New Loan</h1>
-          <p className="mt-1 text-sm text-slate-500">Create a new loan application</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('loans.newLoan')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('loans.createNewLoan')}</p>
         </div>
       </div>
 
@@ -184,14 +185,14 @@ export default function LoanForm() {
         <div className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-800">Loan Details</h2>
+              <h2 className="text-lg font-semibold text-slate-800">{t('loans.loanDetails')}</h2>
             </div>
             <div className="space-y-5 p-6">
               {/* Member */}
               <div>
                 <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700">
                   <Users className="h-4 w-4 text-slate-400" />
-                  Member <span className="text-red-500">*</span>
+                  {t('common.member')} <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="member_id"
@@ -201,7 +202,7 @@ export default function LoanForm() {
                     errors.member_id ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
                   }`}
                 >
-                  <option value="">Select a member</option>
+                  <option value="">{t('loans.selectMember')}</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name || `${m.first_name || ''} ${m.last_name || ''}`.trim()}
@@ -217,7 +218,7 @@ export default function LoanForm() {
               <div>
                 <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700">
                   <Banknote className="h-4 w-4 text-slate-400" />
-                  Loan Amount (Rs.) <span className="text-red-500">*</span>
+                  {t('loans.loanAmount')} (Rs.) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -241,7 +242,7 @@ export default function LoanForm() {
                 <div>
                   <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700">
                     <Percent className="h-4 w-4 text-slate-400" />
-                    Interest Rate (% p.a.) <span className="text-red-500">*</span>
+                    {t('loans.interestRate')} (% p.a.) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -262,7 +263,7 @@ export default function LoanForm() {
                 <div>
                   <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700">
                     <Hash className="h-4 w-4 text-slate-400" />
-                    Term (months) <span className="text-red-500">*</span>
+                    {t('loans.term')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -286,7 +287,7 @@ export default function LoanForm() {
               <div>
                 <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700">
                   <FileText className="h-4 w-4 text-slate-400" />
-                  Purpose
+                  {t('loans.purpose')}
                 </label>
                 <textarea
                   name="purpose"
@@ -302,13 +303,15 @@ export default function LoanForm() {
               <div>
                 <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700">
                   <Calendar className="h-4 w-4 text-slate-400" />
-                  Start Date
+                  {t('loans.startDate')}
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   name="start_date"
                   value={form.start_date}
-                  onChange={handleChange}
+                  onChange={(val) => {
+                    setForm((prev) => ({ ...prev, start_date: val }));
+                    if (errors.start_date) setErrors((prev) => ({ ...prev, start_date: null }));
+                  }}
                   className={`w-full rounded-lg border px-3 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
                     errors.start_date ? 'border-red-300 bg-red-50' : 'border-slate-300 bg-white'
                   }`}
@@ -326,7 +329,7 @@ export default function LoanForm() {
                 onClick={() => navigate('/loans')}
                 className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -336,12 +339,12 @@ export default function LoanForm() {
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Submitting...
+                    {t('common.submitting')}
                   </>
                 ) : (
                   <>
                     <Banknote className="h-4 w-4" />
-                    Create Loan
+                    {t('loans.createLoan')}
                   </>
                 )}
               </button>
@@ -355,16 +358,16 @@ export default function LoanForm() {
             <div className="border-b border-slate-200 px-5 py-4">
               <div className="flex items-center gap-2">
                 <Calculator className="h-5 w-5 text-indigo-600" />
-                <h3 className="text-base font-semibold text-slate-800">EMI Calculator</h3>
+                <h3 className="text-base font-semibold text-slate-800">{t('loans.emiCalculator')}</h3>
               </div>
-              <p className="mt-1 text-xs text-slate-500">Live calculation as you type</p>
+              <p className="mt-1 text-xs text-slate-500">{t('loans.liveCalculation')}</p>
             </div>
             <div className="p-5 space-y-4">
               {emiResult ? (
                 <>
                   <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-4 text-center">
                     <p className="text-xs font-medium text-indigo-600 uppercase tracking-wider">
-                      Monthly Payment (EMI)
+                      {t('loans.monthlyPayment')} (EMI)
                     </p>
                     <p className="mt-1 text-2xl font-bold text-indigo-900">
                       Rs. {formatCurrency(emiResult.monthlyPayment)}
@@ -372,19 +375,19 @@ export default function LoanForm() {
                   </div>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-                      <span className="text-sm text-slate-600">Principal</span>
+                      <span className="text-sm text-slate-600">{t('loans.principal')}</span>
                       <span className="text-sm font-semibold text-slate-900">
                         Rs. {formatCurrency(form.amount)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-                      <span className="text-sm text-slate-600">Total Interest</span>
+                      <span className="text-sm text-slate-600">{t('loans.totalInterest')}</span>
                       <span className="text-sm font-semibold text-amber-700">
                         Rs. {formatCurrency(emiResult.totalInterest)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-3">
-                      <span className="text-sm text-slate-600">Total Repayable</span>
+                      <span className="text-sm text-slate-600">{t('loans.totalRepayable')}</span>
                       <span className="text-sm font-bold text-slate-900">
                         Rs. {formatCurrency(emiResult.totalRepayable)}
                       </span>
@@ -409,7 +412,7 @@ export default function LoanForm() {
                     <div className="mt-2 flex items-center justify-between text-xs">
                       <span className="flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-indigo-500" />
-                        Principal
+                        {t('loans.principal')}
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-amber-400" />
@@ -422,7 +425,7 @@ export default function LoanForm() {
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <Calculator className="h-10 w-10 text-slate-300" />
                   <p className="mt-3 text-sm text-slate-500">
-                    Enter loan amount, interest rate, and term to see the EMI calculation.
+                    {t('loans.enterDetailsForEMI')}
                   </p>
                 </div>
               )}

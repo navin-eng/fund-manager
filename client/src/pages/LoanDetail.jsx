@@ -31,6 +31,7 @@ import {
   uploadLoanDocument,
 } from '../api';
 import { useLocale } from '../contexts/LocaleContext';
+import DateInput from '../components/DateInput';
 
 const STATUS_BADGES = {
   pending: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
@@ -539,11 +540,10 @@ export default function LoanDetail() {
                       <label className="mb-1 block text-xs font-medium text-slate-600">
                         Date *
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
                         value={repaymentForm.date}
-                        onChange={(e) =>
-                          setRepaymentForm((prev) => ({ ...prev, date: e.target.value }))
+                        onChange={(val) =>
+                          setRepaymentForm((prev) => ({ ...prev, date: val }))
                         }
                         required
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

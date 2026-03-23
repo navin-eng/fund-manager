@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, ArrowLeft, Loader2, Calendar } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
+import DateInput from '../components/DateInput';
 
 export default function BulkSavingsForm() {
-  const { formatCurrency, getTodayDateInputValue } = useLocale();
+  const { formatCurrency, getTodayDateInputValue, t } = useLocale();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -153,7 +154,7 @@ export default function BulkSavingsForm() {
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-2xl font-bold text-slate-800">Bulk Savings Entry</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{t('savings.bulkEntry')}</h1>
           </div>
         </div>
 
@@ -173,20 +174,19 @@ export default function BulkSavingsForm() {
           {/* Header Controls */}
           <div className="p-6 border-b border-slate-200 bg-slate-50 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('common.date')}</label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="date"
+                <DateInput
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(val) => setDate(val)}
                   className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Notes / Description</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t('common.notes')}</label>
               <input
                 type="text"
                 value={notes}
@@ -211,8 +211,8 @@ export default function BulkSavingsForm() {
                       onChange={handleToggleAll}
                     />
                   </th>
-                  <th className="p-4 text-sm font-semibold text-slate-600">Member Name</th>
-                  <th className="p-4 text-sm font-semibold text-slate-600 w-48 text-right">Amount (NPR)</th>
+                  <th className="p-4 text-sm font-semibold text-slate-600">{t('savings.memberName')}</th>
+                  <th className="p-4 text-sm font-semibold text-slate-600 w-48 text-right">{t('savings.amountNPR')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -255,10 +255,10 @@ export default function BulkSavingsForm() {
           {/* Footer Summary & Submit */}
           <div className="p-6 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-0 z-20">
             <div className="text-sm">
-              <span className="text-slate-500">Selected: </span>
-              <span className="font-semibold text-slate-800">{totalSelected} members</span>
+              <span className="text-slate-500">{t('savings.selected')}: </span>
+              <span className="font-semibold text-slate-800">{totalSelected} {t('nav.members').toLowerCase()}</span>
               <span className="mx-3 text-slate-300">|</span>
-              <span className="text-slate-500">Total: </span>
+              <span className="text-slate-500">{t('common.total')}: </span>
               <span className="font-bold text-indigo-600 text-lg">{formatCurrency(totalAmount)}</span>
             </div>
             
@@ -272,7 +272,7 @@ export default function BulkSavingsForm() {
               ) : (
                 <Save className="w-5 h-5" />
               )}
-              {submitting ? 'Saving...' : 'Submit Bulk Savings'}
+              {submitting ? t('common.saving') : t('savings.submitBulkSavings')}
             </button>
           </div>
         </form>

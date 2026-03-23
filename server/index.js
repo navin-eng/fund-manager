@@ -20,7 +20,14 @@ const PORT = process.env.PORT || 5001;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: function (origin, callback) {
+    // Allow localhost for dev, and any render.com subdomain for production
+    if (!origin || origin.includes('localhost') || origin.endsWith('.onrender.com')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());
@@ -80,9 +87,23 @@ if (process.env.NODE_ENV === 'production') {
 // Initialize database and start server
 initializeDB();
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Fund Manager server running on port ${PORT}`);
   console.log(`Default admin login: admin / admin123`);
+  
+  // Auto-seed if running in production and no data exists
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      const { db } = require('./db');
+      const memberCount = db.prepare('SELECT COUNT(*) as c FROM members').get().c;
+      if (memberCount === 0) {
+        console.log('No members found. Running auto-seed for demo mode...');
+        require('./seed');
+      }
+    } catch (e) {
+      console.error('Error during auto-seed check:', e.message);
+    }
+  }
 });
 
 module.exports = app;

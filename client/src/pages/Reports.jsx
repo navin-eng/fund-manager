@@ -33,6 +33,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useLocale } from '../contexts/LocaleContext';
+import DateInput from '../components/DateInput';
 import {
   normalizeBalanceSheet,
   normalizeIncomeStatement,
@@ -228,10 +229,9 @@ export default function Reports() {
               <label className="block text-sm font-medium text-slate-700 mb-2">Reference Date</label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                  type="date"
+                <DateInput
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(val) => setDate(val)}
                   className="rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                 />
               </div>

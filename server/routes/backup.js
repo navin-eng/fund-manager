@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
-const { db, initializeDB } = require('../db');
+const { db } = require('../db');
 
 const dataDir = path.join(__dirname, '..', 'data');
 const backupsDir = path.join(__dirname, '..', 'backups');
@@ -41,6 +41,12 @@ function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function getBackupKind(filename) {
+  if (filename.startsWith('pre_restore_')) return 'pre_restore';
+  if (filename.startsWith('backup_')) return 'snapshot';
+  return 'archive';
 }
 
 // GET /api/backup - Create and download database backup
@@ -178,6 +184,7 @@ router.get('/history', (req, res) => {
         const stats = fs.statSync(filePath);
         return {
           filename,
+          kind: getBackupKind(filename),
           size: stats.size,
           size_formatted: formatFileSize(stats.size),
           created_at: stats.mtime.toISOString(),
@@ -256,6 +263,34 @@ router.get('/download/:filename', (req, res) => {
   } catch (error) {
     console.error('Error downloading backup:', error);
     res.status(500).json({ error: 'Failed to download backup' });
+  }
+});
+
+// DELETE /api/backup/files/:filename - Delete a specific backup file
+router.delete('/files/:filename', (req, res) => {
+  try {
+    const safeName = path.basename(req.params.filename);
+
+    if (!safeName.endsWith('.db')) {
+      return res.status(400).json({ error: 'Only backup database files can be deleted' });
+    }
+
+    const filePath = path.join(backupsDir, safeName);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Backup file not found' });
+    }
+
+    fs.unlinkSync(filePath);
+
+    res.json({
+      success: true,
+      filename: safeName,
+      message: 'Backup deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting backup:', error);
+    res.status(500).json({ error: 'Failed to delete backup' });
   }
 });
 

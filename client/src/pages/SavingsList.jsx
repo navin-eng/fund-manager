@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLocale } from '../contexts/LocaleContext';
+import DateInput from '../components/DateInput';
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -284,10 +285,9 @@ export default function SavingsList() {
               <Calendar className="h-3.5 w-3.5" />
               From Date
             </span>
-            <input
-              type="date"
+            <DateInput
               value={filters.dateFrom}
-              onChange={(event) => setFilters((current) => ({ ...current, dateFrom: event.target.value }))}
+              onChange={(val) => setFilters((current) => ({ ...current, dateFrom: val }))}
               className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"
             />
           </label>
@@ -297,10 +297,9 @@ export default function SavingsList() {
               <Calendar className="h-3.5 w-3.5" />
               To Date
             </span>
-            <input
-              type="date"
+            <DateInput
               value={filters.dateTo}
-              onChange={(event) => setFilters((current) => ({ ...current, dateTo: event.target.value }))}
+              onChange={(val) => setFilters((current) => ({ ...current, dateTo: val }))}
               className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"
             />
           </label>

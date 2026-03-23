@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wallet, User, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocale } from '../contexts/LocaleContext';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -10,6 +11,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { t } = useLocale();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -36,8 +38,8 @@ export default function Login() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 mb-4">
               <Wallet className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-800">Fund Manager</h1>
-            <p className="text-slate-500 mt-1">Sign in to your account</p>
+            <h1 className="text-2xl font-bold text-slate-800">{t('auth.fundManager')}</h1>
+            <p className="text-slate-500 mt-1">{t('auth.signInToContinue')}</p>
           </div>
 
           {/* Error Message */}
@@ -52,7 +54,7 @@ export default function Login() {
             {/* Username */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Username
+                {t('auth.username')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -75,7 +77,7 @@ export default function Login() {
             {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
-                Password
+                {t('auth.password')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -117,10 +119,10 @@ export default function Login() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Signing in...
+                  {t('auth.signingIn')}
                 </>
               ) : (
-                'Sign In'
+                t('auth.login')
               )}
             </button>
           </form>
@@ -128,7 +130,7 @@ export default function Login() {
 
         {/* Footer */}
         <p className="text-center text-indigo-200 text-sm mt-6">
-          Community Savings Fund Management System
+          {t('auth.communitySystem')}
         </p>
       </div>
     </div>

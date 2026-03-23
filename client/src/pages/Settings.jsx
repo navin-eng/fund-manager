@@ -16,6 +16,7 @@ import {
   Mail,
 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
+import DateInput from '../components/DateInput';
 
 const API_BASE = '';
 
@@ -592,11 +593,10 @@ export default function Settings() {
               </select>
             </InputField>
             <InputField label="Date">
-              <input
-                type="date"
+              <DateInput
                 value={adjustmentForm.date}
-                onChange={(e) =>
-                  setAdjustmentForm((prev) => ({ ...prev, date: e.target.value }))
+                onChange={(val) =>
+                  setAdjustmentForm((prev) => ({ ...prev, date: val }))
                 }
                 className={inputClasses}
               />

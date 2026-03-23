@@ -171,9 +171,9 @@ export default function MemberDetail() {
   const statementDownloadUrl = `/api/export/member-statement/${id}`;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 lg:space-y-5">
       {/* ── Header Card ── */}
-      <div className="glass-panel-strong rounded-[2rem] p-5 sm:p-6">
+      <div className="glass-panel-strong rounded-[2rem] p-4 sm:p-5">
         {/* Back + Actions row */}
         <div className="flex items-center justify-between gap-3">
           <Link
@@ -217,7 +217,7 @@ export default function MemberDetail() {
         </div>
 
         {/* Profile info */}
-        <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
           {member.photo_url ? (
             <img
               src={member.photo_url}
@@ -317,55 +317,79 @@ export default function MemberDetail() {
         </div>
       </div>
 
-      {/* ── Key Metrics ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5 sm:gap-4">
-        <MetricCard
-          icon={PiggyBank}
-          label="Net Savings"
-          value={formatCurrency(totals.totalSavings)}
-          helper={`${formatCurrency(totals.totalDeposits)} deposited`}
-          accent="bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400"
-        />
-        <MetricCard
-          icon={CreditCard}
-          label="Loan Count"
-          value={String(totals.totalLoansTaken)}
-          helper="Total loans taken"
-          accent="bg-amber-50 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400"
-        />
-        <MetricCard
-          icon={CircleDollarSign}
-          label="Borrowed"
-          value={formatCurrency(totals.totalLoanAmount)}
-          helper={`${formatCurrency(totals.totalLoanRepayable)} repayable`}
-          accent="bg-sky-50 text-sky-600 dark:bg-sky-500/20 dark:text-sky-400"
-        />
-        <MetricCard
-          icon={ArrowDownCircle}
-          label="Total Repaid"
-          value={formatCurrency(totals.totalRepayments)}
-          helper={`${formatCurrency(totals.totalInterestPaid)} interest`}
-          accent="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
-        />
-        <MetricCard
-          icon={Wallet}
-          label="Balance"
-          value={formatCurrency(totals.outstandingBalance)}
-          helper={`${formatCurrency(totals.totalPenaltyPaid)} penalties`}
-          accent="bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400"
-        />
+      {/* ── Savings Metrics ── */}
+      <div className="space-y-1.5">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-faint)] px-1">Savings</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <MetricCard
+            icon={PiggyBank}
+            label="Net Savings"
+            value={formatCurrency(totals.totalSavings)}
+            helper={`${formatCurrency(totals.totalDeposits)} deposited`}
+            accent="bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400"
+          />
+          <MetricCard
+            icon={ArrowUpCircle}
+            label="Total Deposits"
+            value={formatCurrency(totals.totalDeposits)}
+            helper={`${totals.savingsTransactionCount} transactions`}
+            accent="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+          />
+          <MetricCard
+            icon={ArrowDownCircle}
+            label="Total Withdrawals"
+            value={formatCurrency(totals.totalWithdrawals)}
+            helper={totals.lastSavingsDate ? `Last: ${formatDate(totals.lastSavingsDate)}` : ''}
+            accent="bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400"
+          />
+        </div>
       </div>
 
-      {/* ── Main Content: 3-column on XL, stacked otherwise ── */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        {/* Left: Loan Portfolio (spans 2 cols on XL) */}
-        <section className="glass-panel-strong rounded-[2rem] p-5 sm:p-6 xl:col-span-2">
-          <div className="mb-4">
+      {/* ── Loan Metrics ── */}
+      <div className="space-y-1.5">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-faint)] px-1">Loans</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <MetricCard
+            icon={CreditCard}
+            label="Loan Count"
+            value={String(totals.totalLoansTaken)}
+            helper={`${totals.activeLoans} active`}
+            accent="bg-amber-50 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400"
+          />
+          <MetricCard
+            icon={CircleDollarSign}
+            label="Borrowed"
+            value={formatCurrency(totals.totalLoanAmount)}
+            helper={`${formatCurrency(totals.totalLoanRepayable)} repayable`}
+            accent="bg-sky-50 text-sky-600 dark:bg-sky-500/20 dark:text-sky-400"
+          />
+          <MetricCard
+            icon={ArrowDownCircle}
+            label="Total Repaid"
+            value={formatCurrency(totals.totalRepayments)}
+            helper={`${formatCurrency(totals.totalInterestPaid)} interest`}
+            accent="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+          />
+          <MetricCard
+            icon={Wallet}
+            label="Outstanding"
+            value={formatCurrency(totals.outstandingBalance)}
+            helper={`${formatCurrency(totals.totalPenaltyPaid)} penalties`}
+            accent="bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400"
+          />
+        </div>
+      </div>
+
+      {/* ── Detail Columns ── */}
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-5">
+        <div className="contents xl:flex xl:min-w-0 xl:flex-[1.75] xl:flex-col xl:gap-5">
+          <section className="order-1 glass-panel-strong rounded-[2rem] p-4 sm:p-5">
+          <div className="mb-3">
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">Loan Portfolio</h2>
             <p className="text-xs text-[var(--text-muted)]">Amounts borrowed, repaid, remaining, and last repayment for each loan.</p>
           </div>
 
-          <div className="mb-4 grid grid-cols-3 gap-3">
+          <div className="mb-3 grid grid-cols-3 gap-3">
             <MiniStat
               label="Monthly Due"
               value={formatCurrency(totals.monthlyLoanObligation)}
@@ -490,49 +514,10 @@ export default function MemberDetail() {
               </div>
             </>
           )}
-        </section>
+          </section>
 
-        {/* Right: Recent Activity */}
-        <section className="glass-panel-strong rounded-[2rem] p-5 sm:p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            <div>
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Recent Activity</h2>
-              <p className="text-xs text-[var(--text-muted)]">Latest transactions and movements.</p>
-            </div>
-          </div>
-
-          {recentActivity.length === 0 ? (
-            <p className="rounded-xl bg-[var(--surface-3)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">No recent activity available.</p>
-          ) : (
-            <div className="space-y-3">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex gap-2.5">
-                  <ActivityDot accent={activity.accent} />
-                  <div className="min-w-0 flex-1 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-3)] p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-[var(--text-primary)]">{activity.title}</p>
-                        <p className="mt-0.5 text-xs text-[var(--text-muted)]">{activity.subtitle}</p>
-                      </div>
-                      <span className="shrink-0 text-sm font-semibold text-[var(--text-primary)]">{formatCurrency(activity.amount)}</span>
-                    </div>
-                    <p className="mt-1.5 text-[10px] text-[var(--text-faint)]">
-                      {formatDate(activity.date)} · {formatDateTime(activity.timestamp)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* ── Savings History + Repayment Breakdown side by side ── */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        {/* Savings History */}
-        <section className="glass-panel-strong rounded-[2rem] p-5 sm:p-6">
-          <div className="mb-4 flex items-center gap-2">
+          <section className="order-3 glass-panel-strong rounded-[2rem] p-4 sm:p-5">
+          <div className="mb-3 flex items-center gap-2">
             <PiggyBank className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             <div>
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">Savings History</h2>
@@ -610,11 +595,46 @@ export default function MemberDetail() {
               </div>
             </>
           )}
-        </section>
+          </section>
+        </div>
 
-        {/* Repayment Breakdown */}
-        <section className="glass-panel-strong rounded-[2rem] p-5 sm:p-6">
-          <div className="mb-4 flex items-center gap-2">
+        <div className="contents xl:flex xl:min-w-0 xl:flex-1 xl:flex-col xl:gap-5">
+          <section className="order-2 glass-panel-strong rounded-[2rem] p-4 sm:p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Recent Activity</h2>
+                <p className="text-xs text-[var(--text-muted)]">Latest transactions and movements.</p>
+              </div>
+            </div>
+
+            {recentActivity.length === 0 ? (
+              <p className="rounded-xl bg-[var(--surface-3)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">No recent activity available.</p>
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex gap-2.5">
+                    <ActivityDot accent={activity.accent} />
+                    <div className="min-w-0 flex-1 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-3)] p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[var(--text-primary)]">{activity.title}</p>
+                          <p className="mt-0.5 text-xs text-[var(--text-muted)]">{activity.subtitle}</p>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold text-[var(--text-primary)]">{formatCurrency(activity.amount)}</span>
+                      </div>
+                      <p className="mt-1.5 text-[10px] text-[var(--text-faint)]">
+                        {formatDate(activity.date)} · {formatDateTime(activity.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="order-4 glass-panel-strong rounded-[2rem] p-4 sm:p-5">
+          <div className="mb-3 flex items-center gap-2">
             <ArrowDownCircle className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             <div>
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">Repayment Breakdown</h2>
@@ -622,7 +642,7 @@ export default function MemberDetail() {
             </div>
           </div>
 
-          <div className="mb-4 grid grid-cols-2 gap-3">
+          <div className="mb-3 grid grid-cols-2 gap-3">
             <MiniStat
               label="Principal Paid"
               value={formatCurrency(totals.totalPrincipalPaid)}
@@ -663,7 +683,8 @@ export default function MemberDetail() {
               ))}
             </div>
           )}
-        </section>
+          </section>
+        </div>
       </div>
 
       {/* ── Financial Charts ── */}

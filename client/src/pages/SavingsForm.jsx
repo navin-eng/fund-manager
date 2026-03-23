@@ -14,9 +14,10 @@ import {
 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
 import { normalizeSavingsSummary } from '../utils/apiTransforms';
+import DateInput from '../components/DateInput';
 
 export default function SavingsForm() {
-  const { formatCurrency, getTodayDateInputValue, toDateInputValue } = useLocale();
+  const { formatCurrency, getTodayDateInputValue, toDateInputValue, t } = useLocale();
   const navigate = useNavigate();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -199,10 +200,10 @@ export default function SavingsForm() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-800">
-          {isEditing ? 'Edit Savings Transaction' : 'New Savings Transaction'}
+          {isEditing ? t('savings.editSavingsTransaction') : t('savings.newSavingsTransaction')}
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          {isEditing ? 'Update an existing deposit or withdrawal.' : 'Record a deposit or withdrawal for a member.'}
+          {isEditing ? t('savings.editDescription') : t('savings.recordDescription')}
         </p>
       </div>
 
@@ -219,7 +220,7 @@ export default function SavingsForm() {
         <div>
           <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
             <User className="w-4 h-4 text-slate-400" />
-            Member <span className="text-red-500">*</span>
+            {t('common.member')} <span className="text-red-500">*</span>
           </label>
           {loadingMembers ? (
             <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
@@ -234,7 +235,7 @@ export default function SavingsForm() {
                 errors.memberId ? 'border-red-400 bg-red-50' : 'border-slate-300'
               }`}
             >
-              <option value="">Select a member</option>
+              <option value="">{t('savings.selectMember')}</option>
               {members.map((m) => (
                 <option key={m.id || m._id} value={m.id || m._id}>
                   {m.name}
@@ -250,7 +251,7 @@ export default function SavingsForm() {
         {/* Type */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            Transaction Type <span className="text-red-500">*</span>
+            {t('savings.transactionType')} <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-4">
             <label
@@ -269,7 +270,7 @@ export default function SavingsForm() {
                 className="sr-only"
               />
               <ArrowUpCircle className="w-4 h-4" />
-              Deposit
+              {t('savings.deposit')}
             </label>
 
             <label
@@ -288,7 +289,7 @@ export default function SavingsForm() {
                 className="sr-only"
               />
               <ArrowDownCircle className="w-4 h-4" />
-              Withdrawal
+              {t('savings.withdrawal')}
             </label>
           </div>
         </div>
@@ -316,7 +317,7 @@ export default function SavingsForm() {
         <div>
           <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
             <DollarSign className="w-4 h-4 text-slate-400" />
-            Amount (Rs.) <span className="text-red-500">*</span>
+            {t('common.amountRs')} <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
@@ -338,12 +339,11 @@ export default function SavingsForm() {
         <div>
           <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
             <Calendar className="w-4 h-4 text-slate-400" />
-            Date <span className="text-red-500">*</span>
+            {t('common.date')} <span className="text-red-500">*</span>
           </label>
-          <input
-            type="date"
+          <DateInput
             value={form.date}
-            onChange={(e) => handleChange('date', e.target.value)}
+            onChange={(val) => handleChange('date', val)}
             className={`w-full border rounded-lg px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
               errors.date ? 'border-red-400 bg-red-50' : 'border-slate-300'
             }`}
@@ -357,7 +357,7 @@ export default function SavingsForm() {
         <div>
           <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
             <FileText className="w-4 h-4 text-slate-400" />
-            Notes <span className="text-xs text-slate-400">(optional)</span>
+            {t('common.notes')} <span className="text-xs text-slate-400">({t('common.optional')})</span>
           </label>
           <textarea
             value={form.notes}
@@ -376,7 +376,7 @@ export default function SavingsForm() {
             className="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
@@ -386,12 +386,12 @@ export default function SavingsForm() {
             {submitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                {isEditing ? 'Updating...' : 'Saving...'}
+                {isEditing ? t('common.updating') : t('common.saving')}
               </>
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                {isEditing ? 'Update Transaction' : 'Save Transaction'}
+                {isEditing ? t('savings.updateTransaction') : t('savings.saveTransaction')}
               </>
             )}
           </button>

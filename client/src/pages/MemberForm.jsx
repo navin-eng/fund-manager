@@ -15,13 +15,14 @@ import {
   X,
 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
+import DateInput from '../components/DateInput';
 
 export default function MemberForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
   const fileInputRef = useRef(null);
-  const { getTodayDateInputValue, toDateInputValue } = useLocale();
+  const { getTodayDateInputValue, toDateInputValue, t } = useLocale();
 
   const [formData, setFormData] = useState(() => ({
     name: '',
@@ -204,7 +205,7 @@ export default function MemberForm() {
               <Users className="w-6 h-6 text-indigo-600" />
             </div>
             <h1 className="text-2xl font-bold text-slate-800">
-              {isEditing ? 'Edit Member' : 'Add New Member'}
+              {isEditing ? t('page.editMember') : t('members.addNewMember')}
             </h1>
           </div>
         </div>
@@ -225,7 +226,7 @@ export default function MemberForm() {
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
                 <Camera className="w-4 h-4 text-slate-400" />
-                Member Photo
+                {t('members.memberPhoto')}
               </label>
               <div className="flex items-center gap-4">
                 <div className="relative w-20 h-20 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden group">
@@ -261,9 +262,9 @@ export default function MemberForm() {
                     onClick={() => fileInputRef.current?.click()}
                     className="px-4 py-2 text-sm font-medium text-indigo-600 border border-indigo-300 rounded-lg hover:bg-indigo-50 transition-colors"
                   >
-                    {displayPhoto ? 'Change Photo' : 'Upload Photo'}
+                    {displayPhoto ? t('members.changePhoto') : t('members.uploadPhoto')}
                   </button>
-                  <p className="text-xs text-slate-400 mt-1">Max 5 MB, JPG/PNG</p>
+                  <p className="text-xs text-slate-400 mt-1">{t('members.photoRequirements')}</p>
                 </div>
               </div>
             </div>
@@ -272,7 +273,7 @@ export default function MemberForm() {
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
                 <User className="w-4 h-4 text-slate-400" />
-                Full Name <span className="text-red-500">*</span>
+                {t('members.name')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -293,7 +294,7 @@ export default function MemberForm() {
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
                 <Mail className="w-4 h-4 text-slate-400" />
-                Email
+                {t('members.email')}
               </label>
               <input
                 type="email"
@@ -314,7 +315,7 @@ export default function MemberForm() {
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
                 <Phone className="w-4 h-4 text-slate-400" />
-                Phone <span className="text-red-500">*</span>
+                {t('members.phone')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="tel"
@@ -335,7 +336,7 @@ export default function MemberForm() {
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
                 <MapPin className="w-4 h-4 text-slate-400" />
-                Address
+                {t('members.address')}
               </label>
               <textarea
                 name="address"
@@ -351,7 +352,7 @@ export default function MemberForm() {
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
                 <ShieldAlert className="w-4 h-4 text-slate-400" />
-                Emergency Contact
+                {t('members.emergencyContact')}
               </label>
               <input
                 type="text"
@@ -367,13 +368,15 @@ export default function MemberForm() {
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
                 <Calendar className="w-4 h-4 text-slate-400" />
-                Joined Date <span className="text-red-500">*</span>
+                {t('members.joinDate')} <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
+              <DateInput
                 name="joinedDate"
                 value={formData.joinedDate}
-                onChange={handleChange}
+                onChange={(val) => {
+                  setFormData((prev) => ({ ...prev, joinedDate: val }));
+                  if (errors.joinedDate) setErrors((prev) => ({ ...prev, joinedDate: '' }));
+                }}
                 className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
                   errors.joinedDate
                     ? 'border-red-300 bg-red-50'
@@ -394,7 +397,7 @@ export default function MemberForm() {
               to="/members"
               className="px-5 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </Link>
             <button
               type="submit"
@@ -407,10 +410,10 @@ export default function MemberForm() {
                 <Save className="w-4 h-4" />
               )}
               {loading
-                ? 'Saving...'
+                ? t('common.saving')
                 : isEditing
-                ? 'Update Member'
-                : 'Create Member'}
+                ? t('members.updateMember')
+                : t('members.createMember')}
             </button>
           </div>
         </form>
