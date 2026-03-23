@@ -2,6 +2,19 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
 const { requireRole } = require('../middleware/auth');
+const { logActivity } = require('../activity-log');
+
+function describeSavingsFields(existing, nextValues) {
+  const labels = {
+    member_id: 'member',
+    amount: 'amount',
+    type: 'transaction type',
+    date: 'date',
+    notes: 'notes',
+  };
+
+  return Object.keys(labels).filter((field) => String(existing[field] ?? '') !== String(nextValues[field] ?? ''));
+}
 
 // GET /api/savings/summary - must be before /:id route
 router.get('/summary', (req, res) => {
@@ -220,19 +233,48 @@ router.put('/:id', requireRole('admin', 'manager'), (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
+    const nextValues = {
+      member_id: member_id || existing.member_id,
+      amount: amount || existing.amount,
+      type: type || existing.type,
+      date: date || existing.date,
+      notes: notes !== undefined ? notes : existing.notes,
+    };
+
     db.prepare(`
       UPDATE savings SET member_id = ?, amount = ?, type = ?, date = ?, notes = ?
       WHERE id = ?
     `).run(
-      member_id || existing.member_id,
-      amount || existing.amount,
-      type || existing.type,
-      date || existing.date,
-      notes !== undefined ? notes : existing.notes,
+      nextValues.member_id,
+      nextValues.amount,
+      nextValues.type,
+      nextValues.date,
+      nextValues.notes,
       id
     );
 
     const transaction = db.prepare('SELECT s.*, m.name AS member_name FROM savings s JOIN members m ON s.member_id = m.id WHERE s.id = ?').get(id);
+
+    const changedFields = describeSavingsFields(existing, nextValues);
+    if (changedFields.length > 0) {
+      logActivity({
+        req,
+        category: 'savings',
+        action: 'updated',
+        title: 'Savings transaction updated',
+        description: `Updated a ${transaction.type} transaction for ${transaction.member_name}. Changed: ${changedFields.join(', ')}.`,
+        entityType: 'saving',
+        entityId: transaction.id,
+        amount: transaction.amount,
+        activityDate: transaction.date,
+        metadata: {
+          member_name: transaction.member_name,
+          type: transaction.type,
+          changed_fields: changedFields,
+        },
+      });
+    }
+
     res.json(transaction);
   } catch (error) {
     console.error('Error updating saving transaction:', error);
@@ -250,7 +292,27 @@ router.delete('/:id', requireRole('admin', 'manager'), (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
+    const member = db.prepare('SELECT name FROM members WHERE id = ?').get(existing.member_id);
+
     db.prepare('DELETE FROM savings WHERE id = ?').run(id);
+
+    logActivity({
+      req,
+      category: 'savings',
+      action: 'deleted',
+      title: 'Savings transaction deleted',
+      description: `${member?.name || 'A member'}'s ${existing.type} transaction was deleted.`,
+      entityType: 'saving',
+      entityId: existing.id,
+      amount: existing.amount,
+      activityDate: existing.date,
+      metadata: {
+        member_id: existing.member_id,
+        member_name: member?.name || null,
+        type: existing.type,
+      },
+    });
+
     res.json({ message: 'Transaction deleted successfully' });
   } catch (error) {
     console.error('Error deleting saving transaction:', error);

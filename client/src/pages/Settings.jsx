@@ -8,16 +8,16 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  Plus,
-  ArrowUpCircle,
-  ArrowDownCircle,
   History,
   Globe,
   Mail,
+  CreditCard,
+  ShieldCheck,
+  Users,
+  Wallet,
 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext';
 import { authFetch, readJsonResponse } from '../api';
-import DateInput from '../components/DateInput';
 
 const API_BASE = '';
 
@@ -104,6 +104,54 @@ const inputClasses =
 const selectClasses =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors';
 
+function getActivityAppearance(category) {
+  switch (category) {
+    case 'loan':
+      return {
+        label: 'Loans',
+        icon: CreditCard,
+        badge: 'bg-amber-50 text-amber-700 border border-amber-200',
+        iconWrap: 'bg-amber-50 text-amber-700',
+      };
+    case 'savings':
+    case 'funds':
+      return {
+        label: 'Funds',
+        icon: Wallet,
+        badge: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+        iconWrap: 'bg-emerald-50 text-emerald-700',
+      };
+    case 'member':
+      return {
+        label: 'Members',
+        icon: Users,
+        badge: 'bg-sky-50 text-sky-700 border border-sky-200',
+        iconWrap: 'bg-sky-50 text-sky-700',
+      };
+    case 'security':
+      return {
+        label: 'Security',
+        icon: ShieldCheck,
+        badge: 'bg-rose-50 text-rose-700 border border-rose-200',
+        iconWrap: 'bg-rose-50 text-rose-700',
+      };
+    case 'settings':
+      return {
+        label: 'Settings',
+        icon: SettingsIcon,
+        badge: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+        iconWrap: 'bg-indigo-50 text-indigo-700',
+      };
+    default:
+      return {
+        label: 'System',
+        icon: History,
+        badge: 'bg-slate-100 text-slate-700 border border-slate-200',
+        iconWrap: 'bg-slate-100 text-slate-700',
+      };
+  }
+}
+
 export default function Settings() {
   const {
     formatDate,
@@ -112,7 +160,6 @@ export default function Settings() {
     setLanguage,
     theme: currentTheme,
     setTheme,
-    getTodayDateInputValue,
   } = useLocale();
 
   const [settings, setSettings] = useState({
@@ -131,18 +178,9 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
-
-  // Balance adjustments state
-  const [adjustments, setAdjustments] = useState([]);
-  const [adjustmentsLoading, setAdjustmentsLoading] = useState(true);
-  const [adjustmentForm, setAdjustmentForm] = useState({
-    amount: '',
-    type: 'credit',
-    reason: '',
-    date: getTodayDateInputValue(),
-  });
-  const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
-  const [adjustmentMessage, setAdjustmentMessage] = useState(null);
+  const [activityEntries, setActivityEntries] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState(null);
 
   // Fetch settings
   useEffect(() => {
@@ -173,22 +211,22 @@ export default function Settings() {
     fetchSettings();
   }, []);
 
-  // Fetch adjustments
   useEffect(() => {
-    fetchAdjustments();
+    fetchActivityLog();
   }, []);
 
-  async function fetchAdjustments() {
-    setAdjustmentsLoading(true);
+  async function fetchActivityLog() {
+    setActivityLoading(true);
+    setActivityError(null);
     try {
-      const res = await authFetch(`${API_BASE}/api/balance-adjustments`);
-      if (!res.ok) throw new Error('Failed to load adjustments');
+      const res = await authFetch(`${API_BASE}/api/settings/activity-log?limit=60`);
+      if (!res.ok) throw new Error('Failed to load activity log');
       const data = await readJsonResponse(res, {});
-      setAdjustments(Array.isArray(data) ? data : data.adjustments || []);
+      setActivityEntries(Array.isArray(data) ? data : data.entries || []);
     } catch (err) {
-      console.error('Error loading adjustments:', err);
+      setActivityError(err.message);
     } finally {
-      setAdjustmentsLoading(false);
+      setActivityLoading(false);
     }
   }
 
@@ -215,6 +253,7 @@ export default function Settings() {
       if (settings.language) setLanguage(settings.language);
       if (settings.theme) setTheme(settings.theme);
       setMessage({ type: 'success', text: 'Settings saved successfully' });
+      fetchActivityLog();
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -222,42 +261,19 @@ export default function Settings() {
     }
   }
 
-  async function handleSubmitAdjustment(e) {
-    e.preventDefault();
-    if (!adjustmentForm.amount || !adjustmentForm.reason) {
-      setAdjustmentMessage({ type: 'error', text: 'Amount and reason are required' });
-      return;
+  function formatDateTime(value) {
+    if (!value) return 'Unknown time';
+
+    const normalized = String(value).includes('T') ? String(value) : String(value).replace(' ', 'T');
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) {
+      return String(value);
     }
-    setSubmittingAdjustment(true);
-    setAdjustmentMessage(null);
-    try {
-      const res = await authFetch(`${API_BASE}/api/balance-adjustments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: Number(adjustmentForm.amount),
-          type: adjustmentForm.type,
-          reason: adjustmentForm.reason,
-          date: adjustmentForm.date,
-        }),
-      });
-      if (!res.ok) {
-        const err = await readJsonResponse(res, { message: 'Failed to submit adjustment' });
-        throw new Error(err.message || 'Failed to submit adjustment');
-      }
-      setAdjustmentMessage({ type: 'success', text: 'Balance adjustment recorded successfully' });
-      setAdjustmentForm({
-        amount: '',
-        type: 'credit',
-        reason: '',
-        date: getTodayDateInputValue(),
-      });
-      fetchAdjustments();
-    } catch (err) {
-      setAdjustmentMessage({ type: 'error', text: err.message });
-    } finally {
-      setSubmittingAdjustment(false);
-    }
+
+    return parsed.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
   }
 
   if (loading) {
@@ -544,149 +560,69 @@ export default function Settings() {
         </div>
       </form>
 
-      {/* Balance Adjustments */}
-      <SectionCard icon={History} title="Balance Adjustments">
-        {adjustmentMessage && (
-          <div
-            className={`flex items-center gap-2 rounded-lg border p-3 text-sm mb-5 ${
-              adjustmentMessage.type === 'success'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                : 'bg-rose-50 border-rose-200 text-rose-700'
-            }`}
-          >
-            {adjustmentMessage.type === 'success' ? (
-              <CheckCircle className="h-4 w-4 flex-shrink-0" />
-            ) : (
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            )}
-            {adjustmentMessage.text}
+      <SectionCard icon={History} title="Activity Log">
+        <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-sm text-slate-600">
+            Review recent member, loan, savings, security, and settings activity from across the system in one place.
+          </p>
+        </div>
+
+        {activityError && (
+          <div className="mb-5 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {activityError}
           </div>
         )}
 
-        <form onSubmit={handleSubmitAdjustment} className="mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <InputField label="Amount">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">Rs.</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={adjustmentForm.amount}
-                  onChange={(e) =>
-                    setAdjustmentForm((prev) => ({ ...prev, amount: e.target.value }))
-                  }
-                  placeholder="0.00"
-                  className={`${inputClasses} pl-10`}
-                />
-              </div>
-            </InputField>
-            <InputField label="Type">
-              <select
-                value={adjustmentForm.type}
-                onChange={(e) =>
-                  setAdjustmentForm((prev) => ({ ...prev, type: e.target.value }))
-                }
-                className={selectClasses}
-              >
-                <option value="credit">Credit</option>
-                <option value="debit">Debit</option>
-              </select>
-            </InputField>
-            <InputField label="Date">
-              <DateInput
-                value={adjustmentForm.date}
-                onChange={(val) =>
-                  setAdjustmentForm((prev) => ({ ...prev, date: val }))
-                }
-                className={inputClasses}
-              />
-            </InputField>
-            <InputField label="Reason">
-              <input
-                type="text"
-                value={adjustmentForm.reason}
-                onChange={(e) =>
-                  setAdjustmentForm((prev) => ({ ...prev, reason: e.target.value }))
-                }
-                placeholder="Reason for adjustment"
-                className={inputClasses}
-              />
-            </InputField>
+        {activityLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
           </div>
-          <div className="mt-4 flex justify-end">
-            <button
-              type="submit"
-              disabled={submittingAdjustment}
-              className="flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {submittingAdjustment ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              {submittingAdjustment ? 'Submitting...' : 'Add Adjustment'}
-            </button>
+        ) : activityEntries.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
+            No activity has been recorded yet.
           </div>
-        </form>
+        ) : (
+          <div className="space-y-3">
+            {activityEntries.map((entry) => {
+              const appearance = getActivityAppearance(entry.category);
+              const Icon = appearance.icon;
 
-        {/* Adjustments History Table */}
-        <div>
-          <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">History</h4>
-          {adjustmentsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Date</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Type</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700">Amount</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Reason</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adjustments.length > 0 ? (
-                    adjustments.map((adj, i) => (
-                      <tr key={adj.id || i} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="px-4 py-3 text-slate-600">{formatDate(adj.date)}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              adj.type === 'credit'
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-rose-50 text-rose-700'
-                            }`}
-                          >
-                            {adj.type === 'credit' ? (
-                              <ArrowUpCircle className="h-3 w-3" />
-                            ) : (
-                              <ArrowDownCircle className="h-3 w-3" />
-                            )}
-                            {adj.type === 'credit' ? 'Credit' : 'Debit'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                          {formatCurrency(adj.amount)}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600">{adj.reason || '-'}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
-                        No balance adjustments recorded
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+              return (
+                <div key={entry.id} className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${appearance.iconWrap}`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm font-semibold text-slate-800">{entry.title}</h4>
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${appearance.badge}`}>
+                          {appearance.label}
+                        </span>
+                      </div>
+
+                      <p className="mt-1 text-sm text-slate-600">{entry.description || 'Recorded activity.'}</p>
+
+                      <p className="mt-2 text-xs text-slate-500">
+                        {entry.activity_date ? `${formatDate(entry.activity_date)} · ` : ''}
+                        {formatDateTime(entry.created_at)}
+                        {entry.actor_name ? ` · ${entry.actor_name}${entry.actor_role ? ` (${entry.actor_role})` : ''}` : ' · System record'}
+                      </p>
+                    </div>
+
+                    {typeof entry.amount === 'number' ? (
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold text-slate-800">{formatCurrency(entry.amount)}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </SectionCard>
     </div>
   );

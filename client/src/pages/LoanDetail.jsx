@@ -355,6 +355,13 @@ export default function LoanDetail() {
   const StatusIcon = STATUS_ICONS[loan.status] || Clock;
   const repayments = getRepayments();
   const documents = getDocuments();
+  const activeInterestRate = loan.effective_interest_rate || penalty?.effective_interest_rate || getRate();
+  const remainingPrincipal = loan.remaining_principal ?? penalty?.remaining_principal ?? getPrincipal();
+  const inactivityMonths = penalty?.months_since_balance_reduction ?? loan.months_since_balance_reduction ?? 0;
+  const penaltyCharge = penalty?.calculated_penalty ?? penalty?.penaltyAmount ?? penalty?.penalty_amount ?? 0;
+  const penaltyRateActive = Boolean(
+    loan.penalty_rate_active || penalty?.penalty_rate_active || penalty?.overdue
+  );
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 print:space-y-4">
@@ -442,12 +449,24 @@ export default function LoanDetail() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'Principal', value: `Rs. ${formatCurrency(getPrincipal())}`, icon: Banknote, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-          { label: 'Interest Rate', value: `${getRate()}% p.a.`, icon: Percent, color: 'text-amber-600', bg: 'bg-amber-50' },
+          {
+            label: 'Interest Rate',
+            value: penaltyRateActive ? `${activeInterestRate}% active` : `${getRate()}% p.a.`,
+            icon: Percent,
+            color: 'text-amber-600',
+            bg: 'bg-amber-50',
+          },
           { label: 'Term', value: `${getTerm()} months`, icon: Hash, color: 'text-slate-600', bg: 'bg-slate-100' },
           { label: 'Monthly EMI', value: `Rs. ${formatCurrency(getEMI())}`, icon: CircleDollarSign, color: 'text-indigo-600', bg: 'bg-indigo-50' },
           { label: 'Start Date', value: formatDate(getStartDate()), icon: Calendar, color: 'text-slate-600', bg: 'bg-slate-100' },
           { label: 'End Date', value: formatDate(getEndDate()), icon: Calendar, color: 'text-slate-600', bg: 'bg-slate-100' },
-          { label: 'Total Interest', value: `Rs. ${formatCurrency(getTotalInterest())}`, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
+          {
+            label: 'Remaining Principal',
+            value: `Rs. ${formatCurrency(remainingPrincipal)}`,
+            icon: TrendingUp,
+            color: 'text-amber-600',
+            bg: 'bg-amber-50',
+          },
           { label: 'Total Repayable', value: `Rs. ${formatCurrency(getTotalRepayable())}`, icon: Banknote, color: 'text-slate-700', bg: 'bg-slate-100' },
         ].map((card) => {
           const Icon = card.icon;
@@ -486,26 +505,26 @@ export default function LoanDetail() {
       </div>
 
       {/* Penalty Section */}
-      {penalty && (penalty.is_overdue || penalty.isOverdue || penalty.penalty_amount > 0) && (
+      {penalty && (penaltyRateActive || Number(penaltyCharge) > 0) && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="rounded-lg bg-red-100 p-2">
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-red-800">Overdue Notice</h3>
+              <h3 className="text-base font-semibold text-red-800">Penalty Interest Notice</h3>
               <p className="mt-1 text-sm text-red-700">
-                This loan has overdue payments.
-                {(penalty.penalty_amount || penalty.penaltyAmount) > 0 && (
+                No principal reduction has been recorded for {inactivityMonths} month{inactivityMonths === 1 ? '' : 's'},
+                so the loan is now using the 24% annual penalty rate.
+                {Number(penaltyCharge) > 0 && (
                   <span className="font-semibold">
-                    {' '}Penalty amount: Rs.{' '}
-                    {formatCurrency(penalty.penalty_amount || penalty.penaltyAmount)}
+                    {' '}Additional penalty interest due now: Rs. {formatCurrency(penaltyCharge)}
                   </span>
                 )}
               </p>
-              {penalty.days_overdue != null && (
+              {penalty.last_balance_reduction_date && (
                 <p className="mt-1 text-xs text-red-600">
-                  {penalty.days_overdue || penalty.daysOverdue} days overdue
+                  Last balance reduction: {formatDate(penalty.last_balance_reduction_date)}
                 </p>
               )}
             </div>

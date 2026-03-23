@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
 const { diffWholeMonths, getDateRange, getTodayDateString } = require('../date-utils');
+const { buildPenaltySnapshot } = require('../loan-metrics');
 
 // GET /api/reports/summary
 router.get('/summary', async (req, res) => {
@@ -257,36 +258,20 @@ router.get('/overdue-loans', async (req, res) => {
       WHERE l.status = 'active'
     `).all();
 
-    const today = await getTodayDateString(activeLoans[0]?.approved_date || activeLoans[0]?.start_date);
     const overdueLoans = [];
 
     for (const loan of activeLoans) {
-      const expectedPayments = Math.floor(
-        diffWholeMonths(loan.approved_date || loan.start_date, today)
-      );
-
-      const missedPayments = Math.max(0, expectedPayments - loan.repayment_count);
-
-      if (missedPayments > 0) {
-        const totalPrincipalPaid = db.prepare(
-          'SELECT COALESCE(SUM(principal), 0) AS total FROM loan_repayments WHERE loan_id = ?'
-        ).get(loan.id).total;
-
-        const remainingPrincipal = loan.amount - totalPrincipalPaid;
-        const penaltyRate = loan.penalty_rate / 100;
-        const penaltyAmount = Math.round(remainingPrincipal * penaltyRate * missedPayments / 12 * 100) / 100;
-
-        const unpaidPenalties = db.prepare(
-          "SELECT COALESCE(SUM(amount), 0) AS total FROM penalties WHERE loan_id = ? AND status = 'unpaid'"
-        ).get(loan.id).total;
-
+      const snapshot = await buildPenaltySnapshot(loan);
+      if (snapshot.penalty_rate_active) {
         overdueLoans.push({
           ...loan,
-          missed_payments: missedPayments,
-          remaining_principal: remainingPrincipal,
-          calculated_penalty: penaltyAmount,
-          existing_unpaid_penalties: unpaidPenalties,
+          missed_payments: snapshot.months_since_balance_reduction,
+          remaining_principal: snapshot.remaining_principal,
+          calculated_penalty: snapshot.calculated_penalty_interest,
+          existing_unpaid_penalties: snapshot.existing_unpaid_penalties,
           remaining_balance: loan.total_amount - loan.total_paid,
+          effective_interest_rate: snapshot.effective_interest_rate,
+          last_balance_reduction_date: snapshot.last_balance_reduction_date,
         });
       }
     }

@@ -1,19 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
+const { buildReserveDataset } = require('../accounting');
 
 // GET /api/reserve
 router.get('/', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM reserve_fund ORDER BY id ASC').all();
-    const summary = db.prepare(`
-      SELECT
-        (SELECT balance FROM reserve_fund ORDER BY id DESC LIMIT 1) AS current_balance,
-        COALESCE(SUM(credit), 0) AS total_credited,
-        COALESCE(SUM(debit), 0) AS total_debited,
-        COUNT(*) AS total_entries
-      FROM reserve_fund
-    `).get();
+    const { rows, summary } = buildReserveDataset();
     res.json({ rows, summary });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch reserve fund' });

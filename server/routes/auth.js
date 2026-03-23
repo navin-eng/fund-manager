@@ -16,6 +16,7 @@ db.exec(`
     email TEXT,
     status TEXT DEFAULT 'active',
     member_id INTEGER,
+    password_updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     last_login TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
   );
@@ -29,6 +30,23 @@ db.exec(`
   );
 `);
 
+// Check if password_updated_at exists and add it if missing
+try {
+  const tableInfo = db.pragma('table_info(users)');
+  const hasColumn = tableInfo.some(col => col.name === 'password_updated_at');
+  
+  if (!hasColumn) {
+    db.exec('ALTER TABLE users ADD COLUMN password_updated_at TEXT');
+    
+    db.prepare(`
+      UPDATE users
+      SET password_updated_at = COALESCE(created_at, datetime('now'))
+      WHERE password_updated_at IS NULL
+    `).run();
+  }
+} catch (error) {
+  console.error("Error migrating users table:", error.message);
+}
 // Create default admin user if no users exist
 const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
 if (userCount.count === 0) {
@@ -37,7 +55,7 @@ if (userCount.count === 0) {
   const passwordHash = `${salt}:${hash}`;
 
   db.prepare(
-    'INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)'
+    'INSERT INTO users (username, password_hash, name, role, password_updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)'
   ).run('admin', passwordHash, 'Administrator', 'admin');
 
   console.log('Default admin user created (username: admin, password: admin123)');
@@ -154,7 +172,7 @@ router.post('/register', authenticate, requireRole('admin'), (req, res) => {
     const passwordHash = hashPassword(password);
 
     const result = db.prepare(
-      'INSERT INTO users (username, password_hash, name, email, role, member_id) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO users (username, password_hash, name, email, role, member_id, password_updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)'
     ).run(username, passwordHash, name, email || null, role || 'member', member_id || null);
 
     const user = db.prepare('SELECT id, username, name, role, email, status, member_id, created_at FROM users WHERE id = ?').get(result.lastInsertRowid);
@@ -186,7 +204,7 @@ router.put('/change-password', authenticate, (req, res) => {
     }
 
     const newHash = hashPassword(newPassword);
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, req.user.id);
+    db.prepare('UPDATE users SET password_hash = ?, password_updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newHash, req.user.id);
 
     // Invalidate all other sessions
     db.prepare('DELETE FROM sessions WHERE user_id = ? AND token != ?').run(
@@ -254,6 +272,7 @@ router.put('/users/:id', authenticate, requireRole('admin'), (req, res) => {
       const newHash = hashPassword(resetPassword);
       updates.push('password_hash = ?');
       params.push(newHash);
+      updates.push('password_updated_at = CURRENT_TIMESTAMP');
 
       // Invalidate all sessions for this user
       db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);

@@ -4,7 +4,25 @@ const multer = require('multer');
 const path = require('path');
 const { db, getSetting } = require('../db');
 const { addMonthsToDateString, diffWholeMonths, getTodayDateString } = require('../date-utils');
+const { PENALTY_INTEREST_RATE, buildPenaltySnapshot, splitRepaymentAmount } = require('../loan-metrics');
 const { requireRole } = require('../middleware/auth');
+const { logActivity } = require('../activity-log');
+
+function describeLoanFields(existing, nextValues) {
+  const labels = {
+    amount: 'amount',
+    interest_rate: 'interest rate',
+    term_months: 'term length',
+    start_date: 'start date',
+    purpose: 'purpose',
+    penalty_rate: 'penalty rate',
+    status: 'status',
+  };
+
+  return Object.keys(labels)
+    .filter((field) => String(existing[field] ?? '') !== String(nextValues[field] ?? ''))
+    .map((field) => labels[field]);
+}
 
 // Multer configuration
 const storage = multer.diskStorage({
@@ -30,7 +48,7 @@ function calculateEMI(principal, annualRate, termMonths) {
 }
 
 // GET /api/loans - list all loans (members see only their own)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { status, member_id } = req.query;
 
@@ -60,7 +78,19 @@ router.get('/', (req, res) => {
 
     query += ' ORDER BY l.created_at DESC';
 
-    const loans = db.prepare(query).all(...params);
+    const rows = db.prepare(query).all(...params);
+    const loans = await Promise.all(rows.map(async (loan) => {
+      const penaltySnapshot = await buildPenaltySnapshot(loan);
+      return {
+        ...loan,
+        remaining_principal: penaltySnapshot.remaining_principal,
+        effective_interest_rate: penaltySnapshot.effective_interest_rate,
+        penalty_rate_active: penaltySnapshot.penalty_rate_active,
+        months_since_balance_reduction: penaltySnapshot.months_since_balance_reduction,
+        last_balance_reduction_date: penaltySnapshot.last_balance_reduction_date,
+      };
+    }));
+
     res.json(loans);
   } catch (error) {
     console.error('Error fetching loans:', error);
@@ -69,7 +99,7 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/loans/:id - get loan details with repayments and documents
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -100,7 +130,19 @@ router.get('/:id', (req, res) => {
 
     loan.remaining_balance = loan.total_amount - loan.total_paid;
 
-    res.json({ ...loan, repayments, documents });
+    const penaltySnapshot = await buildPenaltySnapshot(loan);
+
+    res.json({
+      ...loan,
+      repayments,
+      documents,
+      remaining_principal: penaltySnapshot.remaining_principal,
+      effective_interest_rate: penaltySnapshot.effective_interest_rate,
+      penalty_rate_active: penaltySnapshot.penalty_rate_active,
+      penalty_interest_rate: penaltySnapshot.penalty_interest_rate,
+      months_since_balance_reduction: penaltySnapshot.months_since_balance_reduction,
+      last_balance_reduction_date: penaltySnapshot.last_balance_reduction_date,
+    });
   } catch (error) {
     console.error('Error fetching loan:', error);
     res.status(500).json({ error: 'Failed to fetch loan' });
@@ -134,7 +176,7 @@ router.post('/', requireRole('admin', 'manager', 'member'), async (req, res) => 
     // Calculate end date
     const end_date = await addMonthsToDateString(start_date, term_months);
 
-    const defaultPenaltyRate = getSetting('default_penalty_rate') || '2';
+    const defaultPenaltyRate = PENALTY_INTEREST_RATE;
 
     const result = db.prepare(`
       INSERT INTO loans (member_id, amount, interest_rate, term_months, start_date, end_date,
@@ -169,6 +211,15 @@ router.put('/:id', requireRole('admin', 'manager'), async (req, res) => {
     const newRate = interest_rate || existing.interest_rate;
     const newTerm = term_months || existing.term_months;
     const newStart = start_date || existing.start_date;
+    const nextValues = {
+      amount: newAmount,
+      interest_rate: newRate,
+      term_months: newTerm,
+      start_date: newStart,
+      purpose: purpose !== undefined ? purpose : existing.purpose,
+      penalty_rate: penalty_rate || existing.penalty_rate,
+      status: status || existing.status,
+    };
 
     const monthly_payment = calculateEMI(newAmount, newRate, newTerm);
     const total_amount = Math.round(monthly_payment * newTerm * 100) / 100;
@@ -183,14 +234,34 @@ router.put('/:id', requireRole('admin', 'manager'), async (req, res) => {
       WHERE id = ?
     `).run(
       newAmount, newRate, newTerm, newStart, end_date,
-      purpose !== undefined ? purpose : existing.purpose,
-      penalty_rate || existing.penalty_rate,
+      nextValues.purpose,
+      nextValues.penalty_rate,
       monthly_payment, total_interest, total_amount,
-      status || existing.status,
+      nextValues.status,
       id
     );
 
     const loan = db.prepare('SELECT l.*, m.name AS member_name FROM loans l JOIN members m ON l.member_id = m.id WHERE l.id = ?').get(id);
+
+    const changedFields = describeLoanFields(existing, nextValues);
+    if (changedFields.length > 0) {
+      logActivity({
+        req,
+        category: 'loan',
+        action: 'updated',
+        title: 'Loan updated',
+        description: `Updated loan #${loan.id} for ${loan.member_name}. Changed: ${changedFields.join(', ')}.`,
+        entityType: 'loan',
+        entityId: loan.id,
+        amount: loan.amount,
+        activityDate: loan.start_date,
+        metadata: {
+          member_name: loan.member_name,
+          changed_fields: changedFields,
+        },
+      });
+    }
+
     res.json(loan);
   } catch (error) {
     console.error('Error updating loan:', error);
@@ -221,6 +292,23 @@ router.put('/:id/approve', requireRole('admin', 'manager'), async (req, res) => 
     `).run(approved_date, approved_by || null, id);
 
     const updated = db.prepare('SELECT l.*, m.name AS member_name FROM loans l JOIN members m ON l.member_id = m.id WHERE l.id = ?').get(id);
+
+    logActivity({
+      req,
+      category: 'loan',
+      action: 'approved',
+      title: 'Loan approved',
+      description: `Approved loan #${updated.id} for ${updated.member_name}.`,
+      entityType: 'loan',
+      entityId: updated.id,
+      amount: updated.amount,
+      activityDate: approved_date,
+      metadata: {
+        member_name: updated.member_name,
+        approved_by: approved_by || null,
+      },
+    });
+
     res.json(updated);
   } catch (error) {
     console.error('Error approving loan:', error);
@@ -245,6 +333,22 @@ router.put('/:id/reject', requireRole('admin', 'manager'), (req, res) => {
     db.prepare("UPDATE loans SET status = 'rejected' WHERE id = ?").run(id);
 
     const updated = db.prepare('SELECT l.*, m.name AS member_name FROM loans l JOIN members m ON l.member_id = m.id WHERE l.id = ?').get(id);
+
+    logActivity({
+      req,
+      category: 'loan',
+      action: 'rejected',
+      title: 'Loan rejected',
+      description: `Rejected loan #${updated.id} for ${updated.member_name}.`,
+      entityType: 'loan',
+      entityId: updated.id,
+      amount: updated.amount,
+      activityDate: updated.start_date,
+      metadata: {
+        member_name: updated.member_name,
+      },
+    });
+
     res.json(updated);
   } catch (error) {
     console.error('Error rejecting loan:', error);
@@ -265,6 +369,22 @@ router.put('/:id/complete', requireRole('admin', 'manager'), (req, res) => {
     db.prepare("UPDATE loans SET status = 'completed' WHERE id = ?").run(id);
 
     const updated = db.prepare('SELECT l.*, m.name AS member_name FROM loans l JOIN members m ON l.member_id = m.id WHERE l.id = ?').get(id);
+
+    logActivity({
+      req,
+      category: 'loan',
+      action: 'completed',
+      title: 'Loan marked completed',
+      description: `Marked loan #${updated.id} for ${updated.member_name} as completed.`,
+      entityType: 'loan',
+      entityId: updated.id,
+      amount: updated.amount,
+      activityDate: updated.end_date || updated.start_date,
+      metadata: {
+        member_name: updated.member_name,
+      },
+    });
+
     res.json(updated);
   } catch (error) {
     console.error('Error completing loan:', error);
@@ -287,64 +407,31 @@ router.post('/:id/repayment', requireRole('admin', 'manager'), async (req, res) 
       return res.status(404).json({ error: 'Loan not found' });
     }
 
-    // Calculate principal and interest split based on remaining balance
-    const totalPaid = db.prepare(
-      'SELECT COALESCE(SUM(amount), 0) AS total FROM loan_repayments WHERE loan_id = ?'
-    ).get(id).total;
-
-    const totalPrincipalPaid = db.prepare(
-      'SELECT COALESCE(SUM(principal), 0) AS total FROM loan_repayments WHERE loan_id = ?'
-    ).get(id).total;
-
-    const remainingPrincipal = loan.amount - totalPrincipalPaid;
-    const monthlyRate = loan.interest_rate / 12 / 100;
-
-    // Interest portion for this payment
-    let interestPortion = Math.round(remainingPrincipal * monthlyRate * 100) / 100;
-    let principalPortion = Math.round((amount - interestPortion) * 100) / 100;
-    let penalty = 0;
-
-    // If principal portion goes negative, all goes to interest
-    if (principalPortion < 0) {
-      interestPortion = amount;
-      principalPortion = 0;
-    }
-
-    // Check for overdue payment and apply penalty
-    const lastRepayment = db.prepare(
-      'SELECT date FROM loan_repayments WHERE loan_id = ? ORDER BY date DESC LIMIT 1'
-    ).get(id);
-
-    const lastPaymentDate = lastRepayment ? lastRepayment.date : (loan.approved_date || loan.start_date);
-
-    // Calculate whole months since the last recorded payment date.
-    const monthsSinceLastPayment = diffWholeMonths(lastPaymentDate, date);
-
-    if (monthsSinceLastPayment > 1) {
-      // Overdue: apply penalty on overdue months
-      const overdueMonths = monthsSinceLastPayment - 1;
-      const penaltyRate = loan.penalty_rate / 100;
-      penalty = Math.round(remainingPrincipal * penaltyRate * overdueMonths / 12 * 100) / 100;
-
-      // Record penalty
-      db.prepare(
-        "INSERT INTO penalties (loan_id, amount, reason, date, status) VALUES (?, ?, ?, ?, 'unpaid')"
-      ).run(id, penalty, `Overdue penalty for ${overdueMonths} month(s)`, date);
-    }
+    const { interestPortion, penaltyPortion, principalPortion, snapshot } = await splitRepaymentAmount(
+      loan,
+      amount,
+      date
+    );
 
     const result = db.prepare(`
       INSERT INTO loan_repayments (loan_id, amount, principal, interest, penalty, date, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, amount, principalPortion, interestPortion, penalty, date, notes || null);
+    `).run(id, amount, principalPortion, interestPortion, penaltyPortion, date, notes || null);
 
-    // Check if loan is fully paid
-    const newTotalPaid = totalPaid + amount;
-    if (newTotalPaid >= loan.total_amount) {
+    // Mark the loan complete once the principal has been cleared.
+    const remainingPrincipalAfterPayment = Math.max(0, snapshot.remaining_principal - principalPortion);
+    if (remainingPrincipalAfterPayment <= 0) {
       db.prepare("UPDATE loans SET status = 'completed' WHERE id = ?").run(id);
     }
 
     const repayment = db.prepare('SELECT * FROM loan_repayments WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json({ ...repayment, penalty_applied: penalty });
+    res.status(201).json({
+      ...repayment,
+      penalty_applied: penaltyPortion,
+      effective_interest_rate: snapshot.effective_interest_rate,
+      penalty_rate_active: snapshot.penalty_rate_active,
+      months_since_balance_reduction: snapshot.months_since_balance_reduction,
+    });
   } catch (error) {
     console.error('Error adding repayment:', error);
     res.status(500).json({ error: 'Failed to add repayment' });
@@ -450,46 +537,16 @@ router.get('/:id/penalty-check', async (req, res) => {
       return res.json({ overdue: false, message: 'Loan is not active' });
     }
 
-    const repayments = db.prepare(
-      'SELECT * FROM loan_repayments WHERE loan_id = ? ORDER BY date DESC'
-    ).all(id);
-
-    const totalPrincipalPaid = db.prepare(
-      'SELECT COALESCE(SUM(principal), 0) AS total FROM loan_repayments WHERE loan_id = ?'
-    ).get(id).total;
-
-    const remainingPrincipal = loan.amount - totalPrincipalPaid;
-    const repaymentCount = repayments.length;
-
-    // Determine how many payments should have been made by now
-    const today = await getTodayDateString(loan.approved_date || loan.start_date);
-    const expectedPayments = Math.floor(
-      diffWholeMonths(loan.approved_date || loan.start_date, today)
-    );
-
-    const missedPayments = Math.max(0, expectedPayments - repaymentCount);
-    const isOverdue = missedPayments > 0;
-
-    let penaltyAmount = 0;
-    if (isOverdue) {
-      const penaltyRate = loan.penalty_rate / 100;
-      penaltyAmount = Math.round(remainingPrincipal * penaltyRate * missedPayments / 12 * 100) / 100;
-    }
-
-    // Get existing unpaid penalties
-    const unpaidPenalties = db.prepare(
-      "SELECT * FROM penalties WHERE loan_id = ? AND status = 'unpaid'"
-    ).all(id);
-
-    const totalUnpaidPenalties = unpaidPenalties.reduce((sum, p) => sum + p.amount, 0);
-
+    const snapshot = await buildPenaltySnapshot(loan);
     res.json({
-      overdue: isOverdue,
-      missed_payments: missedPayments,
-      remaining_principal: remainingPrincipal,
-      calculated_penalty: penaltyAmount,
-      existing_unpaid_penalties: totalUnpaidPenalties,
-      penalty_details: unpaidPenalties,
+      overdue: snapshot.penalty_rate_active,
+      remaining_principal: snapshot.remaining_principal,
+      months_since_balance_reduction: snapshot.months_since_balance_reduction,
+      calculated_penalty: snapshot.calculated_penalty_interest,
+      existing_unpaid_penalties: snapshot.existing_unpaid_penalties,
+      effective_interest_rate: snapshot.effective_interest_rate,
+      penalty_interest_rate: snapshot.penalty_interest_rate,
+      last_balance_reduction_date: snapshot.last_balance_reduction_date,
     });
   } catch (error) {
     console.error('Error checking penalties:', error);

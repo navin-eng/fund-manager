@@ -4,6 +4,7 @@ import { useLocale } from '../contexts/LocaleContext';
 import { useAuth } from '../contexts/AuthContext';
 import { normalizeMember } from '../utils/apiTransforms';
 import { authFetch, readJsonResponse } from '../api';
+import AccordionSection from '../components/AccordionSection';
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,6 +13,7 @@ import {
   Key,
   Landmark,
   Loader2,
+  Mail,
   Pencil,
   Phone,
   PiggyBank,
@@ -67,6 +69,8 @@ export default function MemberList() {
   const [confirmMemberId, setConfirmMemberId] = useState(null);
   const [bulkCredResult, setBulkCredResult] = useState(null);
   const [generatingAll, setGeneratingAll] = useState(false);
+  const [generatingMemberId, setGeneratingMemberId] = useState(null);
+  const [resettingMemberId, setResettingMemberId] = useState(null);
 
   const isStaff = currentUser?.role === 'admin' || currentUser?.role === 'manager';
 
@@ -82,6 +86,44 @@ export default function MemberList() {
       alert(err.message);
     } finally {
       setGeneratingAll(false);
+    }
+  };
+
+  const handleGenerateCredentials = async (member) => {
+    if (!confirm(`Generate login credentials for ${member.name}?`)) return;
+
+    setGeneratingMemberId(member.id);
+    try {
+      const res = await authFetch(`/api/members/${member.id}/generate-credentials`, { method: 'POST' });
+      const data = await readJsonResponse(res, {});
+      if (!res.ok) throw new Error(data.error || 'Failed to generate credentials');
+
+      alert(
+        `Credentials generated for ${member.name}.\n\nUsername: ${data.username}\nTemporary password: ${data.password}\n\nPlease share these credentials securely.`
+      );
+      fetchMembers();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGeneratingMemberId(null);
+    }
+  };
+
+  const handleResetPassword = async (member) => {
+    if (!confirm(`Generate a new password for ${member.name} and send it to ${member.accountEmail || member.email || 'their registered email'}?`)) return;
+
+    setResettingMemberId(member.id);
+    try {
+      const res = await authFetch(`/api/members/${member.id}/reset-password`, { method: 'POST' });
+      const data = await readJsonResponse(res, {});
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password');
+
+      alert(`A new password for ${member.name} was generated and emailed to ${data.email}.`);
+      fetchMembers();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setResettingMemberId(null);
     }
   };
 
@@ -166,9 +208,45 @@ export default function MemberList() {
     return localeFormatDate(value);
   };
 
+  const formatDateTime = (value) => {
+    if (!value) return '—';
+
+    const normalized = String(value).includes(' ') ? String(value).replace(' ', 'T') : String(value);
+    const parsed = new Date(normalized.endsWith('Z') ? normalized : `${normalized}`);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return formatDate(String(value).slice(0, 10));
+    }
+
+    return new Intl.DateTimeFormat('en-NP', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(parsed);
+  };
+
   const formatCurrency = (amount) => {
     if (amount == null) return '—';
     return localeFormatCurrency(Number(amount) || 0);
+  };
+
+  const renderPasswordStatus = (member) => {
+    if (!member.hasUserAccount) {
+      return (
+        <div>
+          <p className="text-sm font-medium text-amber-700 dark:text-amber-400">No login yet</p>
+          <p className="text-xs text-[var(--text-faint)]">Generate credentials to enable access</p>
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Secured</p>
+        <p className="text-xs text-[var(--text-faint)]">
+          {member.passwordUpdatedAt ? `Updated ${formatDateTime(member.passwordUpdatedAt)}` : 'Stored as a protected hash'}
+        </p>
+      </div>
+    );
   };
 
   return (
@@ -213,30 +291,45 @@ export default function MemberList() {
         </div>
       </section>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        <SummaryCard
-          icon={Users}
-          label="Total"
-          value={members.length.toLocaleString()}
-          accent="bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400"
-        />
-        <SummaryCard
-          icon={UserCheck}
-          label="Active"
-          value={totalActive.toLocaleString()}
-          accent="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
-        />
-        <SummaryCard
-          icon={UserX}
-          label="Inactive"
-          value={totalInactive.toLocaleString()}
-          accent="bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400"
-        />
-      </div>
+      <AccordionSection
+        title="Member Overview"
+        description="Quick status totals for the current member directory."
+        icon={Users}
+        badge={members.length.toLocaleString()}
+        className="glass-panel-strong border-transparent bg-transparent shadow-none"
+        headerClassName="hover:bg-transparent"
+        bodyClassName="border-transparent px-0 pt-0"
+      >
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 p-5 sm:p-6">
+          <SummaryCard
+            icon={Users}
+            label="Total"
+            value={members.length.toLocaleString()}
+            accent="bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400"
+          />
+          <SummaryCard
+            icon={UserCheck}
+            label="Active"
+            value={totalActive.toLocaleString()}
+            accent="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+          />
+          <SummaryCard
+            icon={UserX}
+            label="Inactive"
+            value={totalInactive.toLocaleString()}
+            accent="bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400"
+          />
+        </div>
+      </AccordionSection>
 
-      {/* Search & Filter */}
-      <section className="glass-panel-strong rounded-[2rem] p-5 sm:p-6">
+      <AccordionSection
+        title="Member Filters"
+        description="Search by contact details or narrow the list by status."
+        icon={Search}
+        className="glass-panel-strong border-transparent bg-transparent shadow-none"
+        headerClassName="hover:bg-transparent"
+        bodyClassName="border-transparent px-5 pb-5 pt-0 sm:px-6 sm:pb-6"
+      >
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_12rem]">
           <label className="relative block">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-faint)]" />
@@ -268,11 +361,19 @@ export default function MemberList() {
             {paginatedMembers.length} on this page
           </span>
         </div>
-      </section>
+      </AccordionSection>
 
-      {/* Member List */}
-      <section className="overflow-hidden rounded-[2rem] glass-panel-strong">
-        {loading ? (
+      <AccordionSection
+        title="Member Directory"
+        description="Browse, review, and manage individual member records."
+        icon={Users}
+        badge={`${filteredMembers.length} visible`}
+        className="glass-panel-strong border-transparent bg-transparent shadow-none"
+        headerClassName="hover:bg-transparent"
+        bodyClassName="border-transparent px-0 pt-0"
+      >
+        <section className="overflow-hidden rounded-[2rem] glass-panel-strong">
+          {loading ? (
           <div className="flex flex-col items-center justify-center px-6 py-20">
             <Loader2 className="mb-3 h-8 w-8 animate-spin text-indigo-500" />
             <p className="text-sm text-[var(--text-muted)]">Loading members...</p>
@@ -357,6 +458,17 @@ export default function MemberList() {
                       </div>
                     </div>
 
+                    <div className="mt-3 rounded-xl bg-[var(--surface-1)] px-3 py-3">
+                      <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                        <Mail className="h-3.5 w-3.5 text-[var(--text-faint)]" />
+                        <span className="truncate">{member.accountEmail || member.email || 'No email address set'}</span>
+                      </div>
+                      <div className="mt-2 flex items-start gap-2">
+                        <Key className="mt-0.5 h-3.5 w-3.5 text-[var(--text-faint)]" />
+                        <div>{renderPasswordStatus(member)}</div>
+                      </div>
+                    </div>
+
                     {/* Action buttons - all in one row */}
                     {isConfirming ? (
                       <div className="mt-3 flex items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-1)] p-2.5">
@@ -381,7 +493,7 @@ export default function MemberList() {
                         </button>
                       </div>
                     ) : (
-                      <div className="mt-3 flex items-center gap-2">
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         <Link
                           to={`/members/${memberId}`}
                           className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-indigo-700"
@@ -396,6 +508,19 @@ export default function MemberList() {
                           <Pencil className="h-3.5 w-3.5" />
                           Edit
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => member.hasUserAccount ? handleResetPassword(member) : handleGenerateCredentials(member)}
+                          disabled={generatingMemberId === memberId || resettingMemberId === memberId}
+                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-100 disabled:opacity-50 dark:bg-violet-500/15 dark:text-violet-400 dark:hover:bg-violet-500/25"
+                        >
+                          {(generatingMemberId === memberId || resettingMemberId === memberId) ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Key className="h-3.5 w-3.5" />
+                          )}
+                          {member.hasUserAccount ? 'Reset' : 'Generate'}
+                        </button>
                         <button
                           type="button"
                           onClick={() => setConfirmMemberId(memberId)}
@@ -421,6 +546,8 @@ export default function MemberList() {
                 <thead>
                   <tr className="border-b border-[var(--border-soft)] bg-[var(--table-head-bg)]">
                     <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Member</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Email</th>
+                    <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Password</th>
                     <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Phone</th>
                     <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Joined</th>
                     <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">Savings</th>
@@ -457,6 +584,12 @@ export default function MemberList() {
                               </p>
                             </div>
                           </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-sm text-[var(--text-secondary)]">
+                          {member.accountEmail || member.email || '—'}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {renderPasswordStatus(member)}
                         </td>
                         <td className="whitespace-nowrap px-5 py-3.5 text-sm text-[var(--text-secondary)]">{member.phone || '—'}</td>
                         <td className="whitespace-nowrap px-5 py-3.5 text-sm text-[var(--text-muted)]">{formatDate(member.joinedDate || member.createdAt)}</td>
@@ -513,6 +646,19 @@ export default function MemberList() {
                                   <Pencil className="h-3.5 w-3.5" />
                                   Edit
                                 </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => member.hasUserAccount ? handleResetPassword(member) : handleGenerateCredentials(member)}
+                                  disabled={generatingMemberId === memberId || resettingMemberId === memberId}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-100 disabled:opacity-50 dark:bg-violet-500/15 dark:text-violet-400 dark:hover:bg-violet-500/25"
+                                >
+                                  {(generatingMemberId === memberId || resettingMemberId === memberId) ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Key className="h-3.5 w-3.5" />
+                                  )}
+                                  {member.hasUserAccount ? 'Reset Password' : 'Generate Login'}
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => setConfirmMemberId(memberId)}
@@ -590,7 +736,8 @@ export default function MemberList() {
             )}
           </>
         )}
-      </section>
+        </section>
+      </AccordionSection>
 
       {/* Bulk Credentials Result Modal */}
       {bulkCredResult && (

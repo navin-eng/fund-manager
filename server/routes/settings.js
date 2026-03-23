@@ -3,6 +3,13 @@ const settingsRouter = express.Router();
 const adjustmentsRouter = express.Router();
 const { db, getSettings, updateSetting, getSetting } = require('../db');
 const { requireRole } = require('../middleware/auth');
+const { logActivity, listActivityFeed } = require('../activity-log');
+
+function formatSettingLabel(key) {
+  return String(key)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 // GET /api/settings - get all settings
 settingsRouter.get('/', (req, res) => {
@@ -19,10 +26,15 @@ settingsRouter.get('/', (req, res) => {
 settingsRouter.put('/', requireRole('admin'), (req, res) => {
   try {
     const updates = req.body;
+    const previousSettings = getSettings();
 
     if (!updates || typeof updates !== 'object') {
       return res.status(400).json({ error: 'Request body must be an object of key-value pairs' });
     }
+
+    const changedKeys = Object.entries(updates)
+      .filter(([key, value]) => String(previousSettings[key] ?? '') !== String(value))
+      .map(([key]) => key);
 
     const results = [];
     for (const [key, value] of Object.entries(updates)) {
@@ -31,10 +43,37 @@ settingsRouter.put('/', requireRole('admin'), (req, res) => {
     }
 
     const settings = getSettings();
+
+    if (changedKeys.length > 0) {
+      logActivity({
+        req,
+        category: 'settings',
+        action: 'updated',
+        title: 'System settings updated',
+        description: `Updated ${changedKeys.length} setting${changedKeys.length === 1 ? '' : 's'}: ${changedKeys
+          .map(formatSettingLabel)
+          .join(', ')}.`,
+        metadata: {
+          changed_keys: changedKeys,
+        },
+      });
+    }
+
     res.json(settings);
   } catch (error) {
     console.error('Error updating settings:', error);
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// GET /api/settings/activity-log - recent cross-module activity
+settingsRouter.get('/activity-log', requireRole('admin', 'manager'), (req, res) => {
+  try {
+    const entries = listActivityFeed({ limit: req.query.limit });
+    res.json({ entries });
+  } catch (error) {
+    console.error('Error fetching activity log:', error);
+    res.status(500).json({ error: 'Failed to fetch activity log' });
   }
 });
 

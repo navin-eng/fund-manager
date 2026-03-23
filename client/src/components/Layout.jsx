@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import {
   BarChart3,
   BookOpen,
+  ChevronDown,
   ChevronLeft,
   Database,
   Gift,
@@ -73,6 +74,7 @@ function getUserInitials(name) {
 export default function Layout() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [openNavigationSection, setOpenNavigationSection] = useState('Workspace');
   const location = useLocation();
   const drawerId = useId();
   const { user, logout } = useAuth();
@@ -113,11 +115,14 @@ export default function Layout() {
 
   const pageTitle = getPageTitle(location.pathname, t, pageTitles);
 
-  const filteredNavigation = navigation.filter((item) => {
-    if (item.adminOnly && (!user || user.role !== 'admin')) return false;
-    if (item.staffOnly && user && user.role === 'member') return false;
-    return true;
-  });
+  const filteredNavigation = useMemo(
+    () => navigation.filter((item) => {
+      if (item.adminOnly && (!user || user.role !== 'admin')) return false;
+      if (item.staffOnly && user && user.role === 'member') return false;
+      return true;
+    }),
+    [navigation, user]
+  );
   const navigationSections = useMemo(
     () => buildNavigationSections(filteredNavigation),
     [filteredNavigation]
@@ -129,8 +134,26 @@ export default function Layout() {
     (item) => !mobilePrimaryHrefs.includes(item.href) && isRouteActive(location.pathname, item.href)
   );
   const activeNavItem = filteredNavigation.find((item) => isRouteActive(location.pathname, item.href));
+  const activeSectionLabel = useMemo(
+    () => navigationSections.find((section) =>
+      section.items.some((item) => isRouteActive(location.pathname, item.href))
+    )?.label || navigationSections[0]?.label || null,
+    [location.pathname, navigationSections]
+  );
   const fiscalYear = getCurrentFiscalYear();
   const userInitials = getUserInitials(user?.name);
+
+  useEffect(() => {
+    if (activeSectionLabel) {
+      setOpenNavigationSection(activeSectionLabel);
+    }
+  }, [activeSectionLabel, location.pathname]);
+
+  useEffect(() => {
+    if (!navigationSections.some((section) => section.label === openNavigationSection)) {
+      setOpenNavigationSection(navigationSections[0]?.label || null);
+    }
+  }, [navigationSections, openNavigationSection]);
 
   useEffect(() => {
     setSheetOpen(false);
@@ -276,61 +299,75 @@ export default function Layout() {
                     key={section.label}
                     className="rounded-[1.65rem] border border-white/40 bg-white/28 p-3 dark:border-white/10 dark:bg-white/[0.04]"
                   >
-                    <div className="mb-3 flex items-center justify-between px-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenNavigationSection((current) => current === section.label ? null : section.label)}
+                      className="flex w-full items-center justify-between px-1 text-left"
+                      aria-expanded={openNavigationSection === section.label}
+                    >
                       <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
                         {section.label}
                       </p>
-                      <span className="rounded-full bg-white/60 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400">
-                        {section.items.length}
+                      <span className="flex items-center gap-2">
+                        <span className="rounded-full bg-white/60 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400">
+                          {section.items.length}
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 text-slate-400 transition-transform dark:text-slate-500 ${
+                            openNavigationSection === section.label ? 'rotate-180' : ''
+                          }`}
+                        />
                       </span>
-                    </div>
+                    </button>
 
-                    <div className="space-y-1.5">
-                      {section.items.map((item) => {
-                        const isActive = isRouteActive(location.pathname, item.href);
+                    {openNavigationSection === section.label ? (
+                      <div className="mt-3 space-y-1.5">
+                        {section.items.map((item) => {
+                          const isActive = isRouteActive(location.pathname, item.href);
 
-                        return (
-                          <NavLink
-                            key={item.name}
-                            to={item.href}
-                            className={`group relative flex items-center gap-3 overflow-hidden rounded-[1.3rem] px-3 py-3 transition-all duration-200 ${
-                              isActive
-                                ? 'bg-slate-900 text-white shadow-[0_20px_35px_-24px_rgba(15,23,42,0.9)] dark:bg-white/95 dark:text-slate-950'
-                                : 'text-slate-700 hover:bg-white/72 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10 dark:hover:text-white'
-                            }`}
-                          >
-                            {isActive && (
-                              <span className="absolute inset-y-2 left-1 w-1 rounded-full bg-cyan-300 dark:bg-sky-400" aria-hidden="true" />
-                            )}
-
-                            <span className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[1.05rem] transition-colors ${
-                              isActive
-                                ? 'bg-white/12 text-white ring-1 ring-white/15 dark:bg-slate-900/8 dark:text-slate-950 dark:ring-slate-900/10'
-                                : 'bg-white/80 text-slate-600 group-hover:bg-white group-hover:text-slate-950 dark:bg-white/8 dark:text-slate-300 dark:group-hover:bg-white/12 dark:group-hover:text-white'
-                            }`}>
-                              <item.icon className="h-5 w-5" />
-                            </span>
-
-                            <span className="relative min-w-0 flex-1">
-                              <span className="block truncate text-sm font-semibold">{item.name}</span>
-                              <span className={`mt-0.5 block truncate text-[11px] ${
+                          return (
+                            <NavLink
+                              key={item.name}
+                              to={item.href}
+                              className={`group relative flex items-center gap-3 overflow-hidden rounded-[1.3rem] px-3 py-3 transition-all duration-200 ${
                                 isActive
-                                  ? 'text-white/68 dark:text-slate-500'
-                                  : 'text-slate-500 dark:text-slate-400'
-                              }`}>
-                                {item.description}
-                              </span>
-                            </span>
+                                  ? 'bg-slate-900 text-white shadow-[0_20px_35px_-24px_rgba(15,23,42,0.9)] dark:bg-white/95 dark:text-slate-950'
+                                  : 'text-slate-700 hover:bg-white/72 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/10 dark:hover:text-white'
+                              }`}
+                            >
+                              {isActive && (
+                                <span className="absolute inset-y-2 left-1 w-1 rounded-full bg-cyan-300 dark:bg-sky-400" aria-hidden="true" />
+                              )}
 
-                            <span className={`relative h-2 w-2 rounded-full transition-all ${
-                              isActive
-                                ? 'bg-cyan-300 dark:bg-sky-400'
-                                : 'bg-slate-300 opacity-0 group-hover:opacity-100 dark:bg-slate-600'
-                            }`} />
-                          </NavLink>
-                        );
-                      })}
-                    </div>
+                              <span className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[1.05rem] transition-colors ${
+                                isActive
+                                  ? 'bg-white/12 text-white ring-1 ring-white/15 dark:bg-slate-900/8 dark:text-slate-950 dark:ring-slate-900/10'
+                                  : 'bg-white/80 text-slate-600 group-hover:bg-white group-hover:text-slate-950 dark:bg-white/8 dark:text-slate-300 dark:group-hover:bg-white/12 dark:group-hover:text-white'
+                              }`}>
+                                <item.icon className="h-5 w-5" />
+                              </span>
+
+                              <span className="relative min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold">{item.name}</span>
+                                <span className={`mt-0.5 block truncate text-[11px] ${
+                                  isActive
+                                    ? 'text-white/68 dark:text-slate-500'
+                                    : 'text-slate-500 dark:text-slate-400'
+                                }`}>
+                                  {item.description}
+                                </span>
+                              </span>
+
+                              <span className={`relative h-2 w-2 rounded-full transition-all ${
+                                isActive
+                                  ? 'bg-cyan-300 dark:bg-sky-400'
+                                  : 'bg-slate-300 opacity-0 group-hover:opacity-100 dark:bg-slate-600'
+                              }`} />
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -473,28 +510,60 @@ export default function Layout() {
           </div>
 
           <div className="sidebar-scroll flex-1 overflow-y-auto px-4 pb-4">
-            <nav aria-label="Mobile navigation" className="grid gap-2">
-              {filteredNavigation.map((item) => {
-                const isActive = isRouteActive(location.pathname, item.href);
-
-                return (
-                  <NavLink
-                    key={item.name}
-                    to={item.href}
-                    onClick={() => setSheetOpen(false)}
-                    className={`flex items-center gap-3 rounded-[1.35rem] px-4 py-3 text-sm font-medium transition-all ${
-                      isActive
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                        : 'text-slate-700 hover:bg-white/55 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white'
-                    }`}
+            <nav aria-label="Mobile navigation" className="grid gap-3">
+              {navigationSections.map((section) => (
+                <div
+                  key={section.label}
+                  className="overflow-hidden rounded-[1.5rem] border border-white/35 bg-white/40 p-2 dark:border-white/10 dark:bg-white/[0.04]"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenNavigationSection((current) => current === section.label ? null : section.label)}
+                    className="flex w-full items-center justify-between rounded-[1.1rem] px-3 py-2 text-left"
+                    aria-expanded={openNavigationSection === section.label}
                   >
-                    <item.icon
-                      className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`}
-                    />
-                    <span>{item.name}</span>
-                  </NavLink>
-                );
-              })}
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
+                      {section.label}
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-400">
+                        {section.items.length}
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 text-slate-400 transition-transform dark:text-slate-500 ${
+                          openNavigationSection === section.label ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </span>
+                  </button>
+
+                  {openNavigationSection === section.label ? (
+                    <div className="mt-2 grid gap-2">
+                      {section.items.map((item) => {
+                        const isActive = isRouteActive(location.pathname, item.href);
+
+                        return (
+                          <NavLink
+                            key={item.name}
+                            to={item.href}
+                            onClick={() => setSheetOpen(false)}
+                            className={`flex items-center gap-3 rounded-[1.35rem] px-4 py-3 text-sm font-medium transition-all ${
+                              isActive
+                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                                : 'text-slate-700 hover:bg-white/55 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white'
+                            }`}
+                          >
+                            <item.icon
+                              className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`}
+                            />
+                            <span>{item.name}</span>
+                          </NavLink>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
             </nav>
           </div>
 

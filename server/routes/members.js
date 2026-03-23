@@ -7,6 +7,7 @@ const fs = require('fs');
 const router = express.Router();
 const { db, getSettings } = require('../db');
 const { requireRole } = require('../middleware/auth');
+const { logActivity } = require('../activity-log');
 
 // Configure multer for member photo uploads
 const photoDir = path.join(__dirname, '..', 'uploads', 'member-photos');
@@ -66,6 +67,29 @@ function generateUsername(name) {
     if (!found) return candidate;
     counter++;
   }
+}
+
+function syncMemberUserProfile(memberId, name, email) {
+  db.prepare(
+    'UPDATE users SET name = ?, email = ? WHERE member_id = ?'
+  ).run(name, email || null, memberId);
+}
+
+function describeMemberFields(existing, nextValues) {
+  const labels = {
+    name: 'name',
+    email: 'email',
+    phone: 'phone',
+    address: 'address',
+    joined_date: 'joined date',
+    emergency_contact: 'emergency contact',
+    photo_url: 'photo',
+    status: 'status',
+  };
+
+  return Object.keys(labels)
+    .filter((field) => String(existing[field] ?? '') !== String(nextValues[field] ?? ''))
+    .map((field) => labels[field]);
 }
 
 function getMemberLoansWithMetrics(memberId) {
@@ -216,6 +240,108 @@ async function sendWelcomeEmail(member, username, password) {
   }
 }
 
+async function sendPasswordResetEmail(member, username, password) {
+  const transporter = getMailTransporter();
+  const settings = getSettings();
+  const orgName = settings.organization_name || 'Community Savings Fund';
+  const loginUrl = settings.app_url || process.env.APP_URL || 'http://localhost:5173/login';
+
+  const mailOptions = {
+    from: settings.smtp_from || process.env.SMTP_FROM || `"${orgName}" <noreply@fundmanager.com>`,
+    to: member.email,
+    subject: `${orgName} - Your Password Has Been Reset`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin:0; padding:0; background-color:#f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9; padding: 40px 0;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #0f766e, #14b8a6); padding: 32px 40px; text-align:center;">
+                    <h1 style="color:#ffffff; margin:0; font-size:24px; font-weight:700; letter-spacing:-0.5px;">
+                      ${orgName}
+                    </h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 40px;">
+                    <h2 style="color:#1e293b; margin:0 0 16px 0; font-size:20px; font-weight:600;">
+                      Hello, ${member.name}
+                    </h2>
+                    <p style="color:#475569; font-size:15px; line-height:1.6; margin:0 0 24px 0;">
+                      An administrator has reset your portal password. Use the credentials below to sign in.
+                    </p>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:24px;">
+                      <tr>
+                        <td style="padding: 24px;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="padding: 8px 0;">
+                                <span style="color:#64748b; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Username</span>
+                                <br>
+                                <span style="color:#1e293b; font-size:18px; font-weight:700; font-family:monospace;">${username}</span>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 8px 0; border-top:1px solid #e2e8f0;">
+                                <span style="color:#64748b; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">Temporary Password</span>
+                                <br>
+                                <span style="color:#1e293b; font-size:18px; font-weight:700; font-family:monospace;">${password}</span>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                      <tr>
+                        <td align="center">
+                          <a href="${loginUrl}" style="display:inline-block; background-color:#0f766e; color:#ffffff; text-decoration:none; padding:14px 32px; border-radius:8px; font-size:15px; font-weight:600;">
+                            Login to Your Account
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    <div style="background-color:#ecfeff; border:1px solid #99f6e4; border-radius:8px; padding:16px;">
+                      <p style="color:#155e75; font-size:14px; margin:0; line-height:1.5;">
+                        Please sign in and change this temporary password as soon as possible.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#f8fafc; padding:24px 40px; border-top:1px solid #e2e8f0; text-align:center;">
+                    <p style="color:#94a3b8; font-size:12px; margin:0; line-height:1.5;">
+                      This message was sent automatically by ${orgName}.<br>
+                      If you did not expect this reset, contact your fund administrator immediately.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Password reset email sent to ${member.email}`);
+    return true;
+  } catch (error) {
+    console.error('Failed to send password reset email:', error.message);
+    return false;
+  }
+}
+
 // GET /api/members - list all members (members can only see themselves)
 router.get('/', (req, res) => {
   try {
@@ -223,6 +349,13 @@ router.get('/', (req, res) => {
 
     let query = `
       SELECT m.*,
+        u.id AS user_id,
+        u.username,
+        COALESCE(u.email, m.email) AS account_email,
+        u.password_updated_at,
+        u.last_login,
+        CASE WHEN u.id IS NOT NULL THEN 1 ELSE 0 END AS has_user_account,
+        CASE WHEN u.id IS NOT NULL THEN 'secured' ELSE 'not_set' END AS password_status,
         COALESCE(
           (SELECT SUM(CASE WHEN s.type = 'deposit' THEN s.amount ELSE -s.amount END)
            FROM savings s WHERE s.member_id = m.id), 0
@@ -231,6 +364,7 @@ router.get('/', (req, res) => {
          WHERE l.member_id = m.id AND l.status IN ('active', 'approved')
         ) AS active_loans
       FROM members m
+      LEFT JOIN users u ON u.member_id = m.id
       WHERE 1=1
     `;
 
@@ -295,7 +429,7 @@ router.get('/:id', (req, res) => {
     // Include user account info (admin/manager only)
     let userAccount = null;
     if (req.user.role === 'admin' || req.user.role === 'manager') {
-      userAccount = db.prepare('SELECT id, username, status, last_login, created_at FROM users WHERE member_id = ?').get(id) || null;
+      userAccount = db.prepare('SELECT id, username, status, email, last_login, password_updated_at, created_at FROM users WHERE member_id = ?').get(id) || null;
     }
 
     res.json({ ...member, savings_history: savings, loans, user_account: userAccount });
@@ -420,10 +554,24 @@ router.post('/:id/generate-credentials', requireRole('admin', 'manager'), (req, 
     const passwordHash = hashPassword(password);
 
     db.prepare(
-      'INSERT INTO users (username, password_hash, name, email, role, member_id) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO users (username, password_hash, name, email, role, member_id, password_updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)'
     ).run(username, passwordHash, member.name, member.email || null, 'member', member.id);
 
     console.log(`User account created for member "${member.name}": username="${username}"`);
+
+    logActivity({
+      req,
+      category: 'security',
+      action: 'credentials_generated',
+      title: 'Member portal credentials generated',
+      description: `Generated login credentials for ${member.name}.`,
+      entityType: 'member',
+      entityId: member.id,
+      metadata: {
+        member_name: member.name,
+        username,
+      },
+    });
 
     res.status(201).json({
       message: 'Credentials generated successfully',
@@ -459,13 +607,31 @@ router.post('/generate-all-credentials', requireRole('admin', 'manager'), (req, 
         const passwordHash = hashPassword(password);
 
         db.prepare(
-          'INSERT INTO users (username, password_hash, name, email, role, member_id) VALUES (?, ?, ?, ?, ?, ?)'
+          'INSERT INTO users (username, password_hash, name, email, role, member_id, password_updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)'
         ).run(username, passwordHash, member.name, member.email || null, 'member', member.id);
 
         generated.push({ member_id: member.id, member_name: member.name, username, password });
       } catch (err) {
         console.error(`Failed to generate account for member ${member.name}:`, err.message);
       }
+    }
+
+    if (generated.length > 0) {
+      logActivity({
+        req,
+        category: 'security',
+        action: 'bulk_credentials_generated',
+        title: 'Bulk member credentials generated',
+        description: `Generated portal credentials for ${generated.length} member account(s).`,
+        metadata: {
+          count: generated.length,
+          members: generated.map((entry) => ({
+            member_id: entry.member_id,
+            member_name: entry.member_name,
+            username: entry.username,
+          })),
+        },
+      });
     }
 
     res.status(201).json({
@@ -475,6 +641,72 @@ router.post('/generate-all-credentials', requireRole('admin', 'manager'), (req, 
   } catch (error) {
     console.error('Error generating bulk credentials:', error);
     res.status(500).json({ error: 'Failed to generate credentials' });
+  }
+});
+
+// POST /api/members/:id/reset-password - generate a new password and email it to the member
+router.post('/:id/reset-password', requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const member = db.prepare('SELECT * FROM members WHERE id = ?').get(id);
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    const user = db.prepare('SELECT * FROM users WHERE member_id = ?').get(id);
+    if (!user) {
+      return res.status(404).json({ error: 'This member does not have a login account yet' });
+    }
+
+    const registeredEmail = member.email || user.email;
+    if (!registeredEmail) {
+      return res.status(400).json({ error: 'Add a registered email address before resetting this password' });
+    }
+
+    const password = generatePassword();
+    const passwordHash = hashPassword(password);
+    const emailSent = await sendPasswordResetEmail(
+      { ...member, email: registeredEmail },
+      user.username,
+      password
+    );
+
+    if (!emailSent) {
+      return res.status(500).json({ error: 'Failed to send the reset email. The password was not changed.' });
+    }
+
+    db.prepare(`
+      UPDATE users
+      SET password_hash = ?, email = ?, password_updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(passwordHash, registeredEmail, user.id);
+
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(user.id);
+
+    logActivity({
+      req,
+      category: 'security',
+      action: 'password_reset',
+      title: 'Member password reset',
+      description: `Reset the portal password for ${member.name} and sent the new credentials to ${registeredEmail}.`,
+      entityType: 'member',
+      entityId: member.id,
+      metadata: {
+        member_name: member.name,
+        username: user.username,
+        email: registeredEmail,
+      },
+    });
+
+    res.json({
+      message: 'A new password has been generated and emailed successfully',
+      username: user.username,
+      email: registeredEmail,
+    });
+  } catch (error) {
+    console.error('Error resetting member password:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 
@@ -506,7 +738,7 @@ router.post('/', requireRole('admin', 'manager'), upload.single('photo'), async 
       const passwordHash = hashPassword(generatedPassword);
 
       db.prepare(
-        'INSERT INTO users (username, password_hash, name, email, role, member_id) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO users (username, password_hash, name, email, role, member_id, password_updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)'
       ).run(generatedUsername, passwordHash, name, email || null, 'member', member.id);
 
       console.log(`User account created for member "${name}": username="${generatedUsername}"`);
@@ -552,24 +784,59 @@ router.put('/:id', requireRole('admin', 'manager'), optionalUpload, (req, res) =
       return res.status(404).json({ error: 'Member not found' });
     }
 
+    const nextValues = {
+      name: name || existing.name,
+      email: email !== undefined ? email : existing.email,
+      phone: phone !== undefined ? phone : existing.phone,
+      address: address !== undefined ? address : existing.address,
+      joined_date: joined_date || existing.joined_date,
+      emergency_contact: emergency_contact !== undefined ? emergency_contact : existing.emergency_contact,
+      photo_url: photo_url !== undefined ? photo_url : existing.photo_url,
+      status: status || existing.status,
+    };
+
     db.prepare(`
       UPDATE members
       SET name = ?, email = ?, phone = ?, address = ?, joined_date = ?,
           emergency_contact = ?, photo_url = ?, status = ?
       WHERE id = ?
     `).run(
-      name || existing.name,
-      email !== undefined ? email : existing.email,
-      phone !== undefined ? phone : existing.phone,
-      address !== undefined ? address : existing.address,
-      joined_date || existing.joined_date,
-      emergency_contact !== undefined ? emergency_contact : existing.emergency_contact,
-      photo_url !== undefined ? photo_url : existing.photo_url,
-      status || existing.status,
+      nextValues.name,
+      nextValues.email,
+      nextValues.phone,
+      nextValues.address,
+      nextValues.joined_date,
+      nextValues.emergency_contact,
+      nextValues.photo_url,
+      nextValues.status,
       id
     );
 
+    syncMemberUserProfile(
+      id,
+      nextValues.name,
+      nextValues.email
+    );
+
     const member = db.prepare('SELECT * FROM members WHERE id = ?').get(id);
+
+    const changedFields = describeMemberFields(existing, nextValues);
+    if (changedFields.length > 0) {
+      logActivity({
+        req,
+        category: 'member',
+        action: 'updated',
+        title: 'Member profile updated',
+        description: `Updated ${member.name}'s profile. Changed: ${changedFields.join(', ')}.`,
+        entityType: 'member',
+        entityId: member.id,
+        metadata: {
+          member_name: member.name,
+          changed_fields: changedFields,
+        },
+      });
+    }
+
     res.json(member);
   } catch (error) {
     console.error('Error updating member:', error);
@@ -588,6 +855,20 @@ router.delete('/:id', requireRole('admin', 'manager'), (req, res) => {
     }
 
     db.prepare("UPDATE members SET status = 'inactive' WHERE id = ?").run(id);
+
+    logActivity({
+      req,
+      category: 'member',
+      action: 'deactivated',
+      title: 'Member deactivated',
+      description: `${existing.name} was marked as inactive.`,
+      entityType: 'member',
+      entityId: existing.id,
+      metadata: {
+        member_name: existing.name,
+      },
+    });
+
     res.json({ message: 'Member deactivated successfully' });
   } catch (error) {
     console.error('Error deleting member:', error);

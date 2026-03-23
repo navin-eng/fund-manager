@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   Clock,
   Eye,
+  FileText,
   Filter,
   Landmark,
   Loader2,
@@ -21,6 +22,7 @@ import { approveLoan, getLoans, getMembers, rejectLoan } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { normalizeLoan } from '../utils/apiTransforms';
+import AccordionSection from '../components/AccordionSection';
 
 const STATUS_BADGES = {
   pending: 'bg-amber-50 text-amber-700 border border-amber-200',
@@ -329,22 +331,33 @@ export default function LoanList() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {summaryCards.map((card) => (
-          <SummaryCard
-            key={card.label}
-            icon={card.icon}
-            label={card.label}
-            value={card.value}
-            valueClassName={card.valueClassName}
-            iconClassName={card.iconClassName}
-            alert={card.alert}
-          />
-        ))}
-      </div>
+      <AccordionSection
+        title="Loan Overview"
+        description="Portfolio totals, interest earned, and overdue exposure at a glance."
+        icon={Landmark}
+        badge={loans.length.toLocaleString()}
+      >
+        <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
+          {summaryCards.map((card) => (
+            <SummaryCard
+              key={card.label}
+              icon={card.icon}
+              label={card.label}
+              value={card.value}
+              valueClassName={card.valueClassName}
+              iconClassName={card.iconClassName}
+              alert={card.alert}
+            />
+          ))}
+        </div>
+      </AccordionSection>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className={`grid grid-cols-1 gap-4 ${isMember ? 'lg:grid-cols-[minmax(0,1fr)_12rem]' : 'lg:grid-cols-[minmax(0,1fr)_14rem_12rem]'}`}>
+      <AccordionSection
+        title="Loan Filters"
+        description="Filter by member, status, or a free-text search."
+        icon={Filter}
+      >
+        <div className={`grid grid-cols-1 gap-4 p-5 sm:p-6 ${isMember ? 'lg:grid-cols-[minmax(0,1fr)_12rem]' : 'lg:grid-cols-[minmax(0,1fr)_14rem_12rem]'}`}>
           <label className="relative block">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -385,7 +398,7 @@ export default function LoanList() {
           </select>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-4 flex flex-col gap-3 px-5 pb-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pb-6">
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <Filter className="h-4 w-4" />
             <span>{visibleLoans.length} visible loans</span>
@@ -401,7 +414,7 @@ export default function LoanList() {
             </button>
           )}
         </div>
-      </section>
+      </AccordionSection>
 
       {error && (
         <div className="rounded-[1.6rem] border border-rose-200 bg-rose-50 p-4">
@@ -412,8 +425,14 @@ export default function LoanList() {
         </div>
       )}
 
-      <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-        {loading ? (
+      <AccordionSection
+        title="Loan Records"
+        description="Track disbursements, repayments, outstanding balances, and approval status."
+        icon={FileText}
+        badge={`${visibleLoans.length} loans`}
+      >
+        <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+          {loading ? (
           <div className="flex items-center justify-center px-6 py-20">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
             <span className="ml-3 text-sm text-slate-500">Loading loans...</span>
@@ -671,7 +690,8 @@ export default function LoanList() {
             )}
           </>
         )}
-      </section>
+        </section>
+      </AccordionSection>
     </div>
   );
 }

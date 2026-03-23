@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
+const { buildDistributionDataset } = require('../accounting');
 
 // GET /api/distributions
 router.get('/', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM distributions ORDER BY id ASC').all();
+    const { rows } = buildDistributionDataset();
     res.json(rows);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch distributions' });
@@ -15,24 +16,7 @@ router.get('/', (req, res) => {
 // GET /api/distributions/summary — grouped rounds
 router.get('/summary', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM distributions ORDER BY id ASC').all();
-    // Group into rounds of 3 (income, bonus, reserve)
-    const rounds = [];
-    for (let i = 0; i < rows.length; i += 3) {
-      const income = rows[i];
-      const bonus = rows[i + 1];
-      const reserve = rows[i + 2];
-      if (income && bonus && reserve) {
-        rounds.push({
-          round: rounds.length + 1,
-          date: income.date,
-          period: income.particulars,
-          income: income.credit || 0,
-          bonus: bonus.debit || 0,
-          reserve: reserve.debit || 0,
-        });
-      }
-    }
+    const { rounds } = buildDistributionDataset();
     res.json(rounds);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch distribution summary' });

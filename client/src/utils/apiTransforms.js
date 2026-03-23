@@ -18,6 +18,11 @@ export function normalizeLoan(loan) {
     totalInterest: loan.total_interest ?? loan.totalInterest ?? null,
     totalAmount: loan.total_amount ?? loan.totalAmount ?? null,
     remainingBalance: loan.remaining_balance ?? loan.remainingBalance ?? null,
+    remainingPrincipal: loan.remaining_principal ?? loan.remainingPrincipal ?? null,
+    effectiveInterestRate: loan.effective_interest_rate ?? loan.effectiveInterestRate ?? null,
+    penaltyRateActive: Boolean(loan.penalty_rate_active ?? loan.penaltyRateActive),
+    monthsSinceBalanceReduction: loan.months_since_balance_reduction ?? loan.monthsSinceBalanceReduction ?? null,
+    lastBalanceReductionDate: loan.last_balance_reduction_date ?? loan.lastBalanceReductionDate ?? null,
   };
 }
 
@@ -56,6 +61,12 @@ export function normalizeMember(member) {
     totalDeposits: toNumber(totalDeposits),
     totalWithdrawals: toNumber(totalWithdrawals),
     activeLoans: toNumber(activeLoans),
+    accountEmail: member.account_email ?? member.accountEmail ?? member.email ?? '',
+    hasUserAccount: Boolean(member.has_user_account ?? member.hasUserAccount ?? member.user_id ?? member.userAccount?.id),
+    passwordStatus: member.password_status ?? member.passwordStatus ?? 'not_set',
+    passwordUpdatedAt: member.password_updated_at ?? member.passwordUpdatedAt ?? null,
+    username: member.username ?? member.user_account?.username ?? member.userAccount?.username ?? '',
+    lastLogin: member.last_login ?? member.lastLogin ?? null,
     savingsHistory,
     loans: normalizedLoans,
   };
